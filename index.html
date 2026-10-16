@@ -399,9 +399,9 @@ const S = {
   loaded:{kri:false}, levels:{}, profiles:{}, pending:new Set(),
   tab:'overview', alertFilter:'all', heatMode:'now', reg:{level:'all', analyst:'all', q:''},
   prefs:{notifyMin:8, toasts:true, repeat:30, sound:true, system:true, me:''}, openRisk:null, errors:{}, bannerDismissed:false,
-  clues:[], cluesLoaded:false, localIds:new Set(), clue:{dept:'IT department', text:'', risks:[], effect:'none'},
+  clues:[], cluesLoaded:false, localIds:new Set(), snooze:{}, clue:{dept:'IT department', text:'', risks:[], effect:'none'},
 };
-try { const p = JSON.parse(localStorage.getItem('novatech-riskwatch-prefs') || 'null'); if (p && typeof p === 'object') { if ([1,8,12].includes(p.notifyMin)) S.prefs.notifyMin = p.notifyMin; if (typeof p.toasts === 'boolean') S.prefs.toasts = p.toasts; if ([15,30,60,300].includes(p.repeat)) S.prefs.repeat = p.repeat; if (typeof p.sound === 'boolean') S.prefs.sound = p.sound; if (typeof p.system === 'boolean') S.prefs.system = p.system; if (TEAM.includes(p.me)) S.prefs.me = p.me; } } catch (e) {}
+try { const p = JSON.parse(localStorage.getItem('novatech-riskwatch-prefs') || 'null'); if (p && typeof p === 'object') { if ([1,8,12].includes(p.notifyMin)) S.prefs.notifyMin = p.notifyMin; if ([15,30,60,300].includes(p.repeat)) S.prefs.repeat = p.repeat; if (typeof p.sound === 'boolean') S.prefs.sound = p.sound; if (typeof p.system === 'boolean') S.prefs.system = p.system; if (TEAM.includes(p.me)) S.prefs.me = p.me; } } catch (e) {}
 function savePrefs(){ try { localStorage.setItem('novatech-riskwatch-prefs', JSON.stringify(S.prefs)); } catch (e) {} }
 try { const t = localStorage.getItem('riskwatch-tab'); if (['overview','register','mitigation','benefits','method'].includes(t)) S.tab = t; } catch (e) {}
 const hashTab = (location.hash || '').slice(1);
@@ -474,7 +474,7 @@ function allAlerts(){
     if (!tier) continue;
     /* A red indicator keeps the risk's original score: if mitigation is marked done but the signal is red, it is not working yet. */
     const sc = tier === 'critical' ? Math.max(score(nowPI(r)), score(inh(r))) : score(nowPI(r));
-    const ack = S.acks[k.id]; const acked = !!(ack && ack.at === st.last.at);
+    const acked = (S.snooze[k.id] || 0) > Date.now();
     const soon = st.t && st.t.toRed != null ? Math.max(0, 8 - st.t.toRed) : 0;
     const pri = {critical:300, warning:200, early:100}[tier] + sc * 6 + (st.t && st.t.dir === 'worse' ? 8 : 0) + soon - (acked ? 1000 : 0);
     out.push({k, r, st, tier, score:sc, acked, pri});
@@ -637,8 +637,8 @@ function alertsPanel(al){
 }
 function alertItem(a){
   const nx = nextStep(a.r);
-  const ackBtn = a.acked ? el('span', {class:'pill none', text:'Acknowledged'}) :
-    el('button', {class:'btn', type:'button', disabled:!canEdit(), onclick:() => acknowledge(a.k)}, 'Acknowledge');
+  const ackBtn = a.acked ? el('span', {class:'pill none', text:`Snoozed until ${new Date(S.snooze[a.k.id]).toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})}`}) :
+    el('button', {class:'btn', type:'button', title:'Hide this alert for 5 minutes; it comes back after that and on every reload', onclick:() => acknowledge(a.k)}, 'Acknowledge (5 min)');
   return el('li', {class:`alert ${a.tier}${a.acked ? ' acked' : ''}`},
     el('span', {class:'stripe'}),
     el('div', {style:'min-width:0'},
@@ -909,7 +909,7 @@ function viewMethod(){
         el('li', null, el('b', {text:'Critical: '}), 'the indicator is past red. Act now.'),
         el('li', null, el('b', {text:'Warning: '}), 'past amber. The alert says how many weeks remain before red at the current rate.'),
         el('li', null, el('b', {text:'Early warning: '}), 'still in range, but the trend over the last four readings reaches amber within six weeks.')),
-      el('p', {text:'Alerts are ranked by severity, then by the risk’s current score, so the most critical risks come first. “Notify me for” chooses which risks raise pop-up notifications: critical only (12+), high and critical (8+), or all. Open alerts pop up as soon as the dashboard opens and keep coming back (with a sound and a desktop notification if allowed) every 30 seconds by default, until you acknowledge them or press “Stop notifications” at the top. A new reading that pushes an indicator into amber or red triggers an alert straight away, in every open tab.'}),
+      el('p', {text:'Alerts are ranked by severity, then by the risk’s current score, so the most critical risks come first. “Notify me for” chooses which risks raise pop-up notifications: critical only (12+), high and critical (8+), or all. Open alerts pop up as soon as the dashboard opens and keep coming back (with a sound and a desktop notification if allowed) every 30 seconds by default, on every reload. Acknowledging an alert hides it for 5 minutes, then it comes back. “Stop notifications” at the top silences everything until you turn it back on or reload the page. A new reading that pushes an indicator into amber or red triggers an alert straight away, in every open tab.'}),
       el('h3', {text:'3. Live clues'}),
       el('p', {text:'The clue feed starts with the facts from the NOVATECH case file. During the session, log each new piece of information with where it came from (Direction, employees, IT, clients, suppliers, accounting or HR) and the risks it points to. A clue can be evidence only, or raise a risk’s probability or impact by one step; the score, heat map and alerts update for everyone at once. Indicators marked “From dossier” use the figures in the case file: 40% telework, 25 hires out of 85 staff, and 35% revenue growth.'}),
       el('h3', {text:'4. Mitigation and benefit'}),
@@ -1014,7 +1014,7 @@ function toast(tier, title, msg, rid, key){
     el('div', {style:'flex:1;min-width:0'}, el('div', {class:'tt', text:title}), el('div', {class:'tm', text:msg}),
       el('div', {style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'},
         rid ? el('button', {class:'btn', type:'button', onclick:() => { openRisk(rid); }}, 'Open risk') : null,
-        persistent ? el('button', {class:'btn', type:'button', onclick:() => { const k = KRIS.find(x => x.id === key); if (k) acknowledge(k); t.remove(); }}, 'Acknowledge') : null)),
+        persistent ? el('button', {class:'btn', type:'button', onclick:() => { const k = KRIS.find(x => x.id === key); if (k) acknowledge(k); t.remove(); }}, 'Acknowledge (5 min)') : null)),
     el('button', {class:'x', type:'button', 'aria-label':'Hide until the next reminder', title:'Hide until the next reminder', onclick:() => t.remove()}, '×'));
   box.prepend(t);
   while (box.children.length > 5) box.lastChild.remove();
@@ -1047,13 +1047,15 @@ function ring(force){
   }
 }
 function setNotify(on){
-  S.prefs.toasts = !!on; savePrefs();
+  S.prefs.toasts = !!on;
   if (!on) { document.querySelectorAll('#toasts .toast[data-key]').forEach(t => t.remove()); document.title = 'NOVATECH Risk Watch'; }
   else { unlockAudio(); ring(true); }
   schedule();
 }
 setInterval(() => {
   const n = S.prefs.toasts ? openAlerts().length : 0;
+  const now = Date.now(); let woke = false; for (const [id, until] of Object.entries(S.snooze)) if (until <= now) { delete S.snooze[id]; woke = true; }
+  if (woke) { schedule(); ring(true); }
   titleFlip = !titleFlip;
   document.title = n ? (titleFlip ? `(${n}) Alert · NOVATECH Risk Watch` : 'NOVATECH Risk Watch') : 'NOVATECH Risk Watch';
   ring(false);
@@ -1090,7 +1092,7 @@ async function saveReading(k, raw){
   if (ok) { const f = document.getElementById('in-' + k.id); if (f) f.value = ''; }
 }
 function setStatus(aid, v){ return guarded('actions/' + aid, () => S.db.doc('actions/' + aid).set({status:v, at:new Date().toISOString(), by:S.myId || null})); }
-function acknowledge(k){ const st = kriState(k); if (!st.last) return; const tt = document.querySelector(`#toasts [data-key="${k.id}"]`); if (tt) tt.remove(); return guarded('acks/' + k.id, () => S.db.doc('acks/' + k.id).set({at:st.last.at, by:S.myId || null, ackAt:new Date().toISOString()})); }
+function acknowledge(k){ const tt = document.querySelector(`#toasts [data-key="${k.id}"]`); if (tt) tt.remove(); S.snooze[k.id] = Date.now() + 5 * 60000; schedule(); }
 function reassess(r, key, d){
   const a = inh(r); const next = {p:a.p, i:a.i}; next[key] = clampPI(next[key] + d);
   return guarded('reassess/' + r.id, () => S.db.doc('reassess/' + r.id).set({p:next.p, i:next.i, at:new Date().toISOString(), by:S.myId || null}));
