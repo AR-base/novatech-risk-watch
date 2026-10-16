@@ -224,8 +224,8 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:860px}
 .prose ul{padding-left:18px}
 
 /* drawer */
-.scrim{position:fixed;inset:0;background:rgba(10,13,20,.38);z-index:40}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(600px,100%);background:var(--panel);z-index:41;display:flex;flex-direction:column;box-shadow:-8px 0 40px rgba(0,0,0,.18);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
+.scrim{position:fixed;inset:0;background:rgba(10,13,20,.38);z-index:69}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(600px,100%);background:var(--panel);z-index:70;display:flex;flex-direction:column;box-shadow:-8px 0 40px rgba(0,0,0,.18);padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);padding-right:env(safe-area-inset-right,0px)}
 .d-head{display:flex;gap:12px;align-items:flex-start;padding:16px 18px;border-bottom:1px solid var(--line)}
 .d-head h2{margin:0;font-family:var(--f-display);font-size:19px;font-weight:800;line-height:1.2}
 .d-head .sub{color:var(--muted);font-size:12.5px;margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -308,7 +308,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13.5px;min-width:860px}
       <button class="tab" role="tab" data-tab="register" id="tab-register">Risk register</button>
       <button class="tab" role="tab" data-tab="mitigation" id="tab-mitigation">Mitigation plan</button>
       <button class="tab" role="tab" data-tab="benefits" id="tab-benefits">Benefits</button>
-      <button class="tab" role="tab" data-tab="method" id="tab-method">How it works</button>
+      <button class="tab" role="tab" data-tab="method" id="tab-method">Phone alerts &amp; help</button>
     </div>
   </nav>
 </header>
@@ -380,6 +380,9 @@ const DEPTS = ['Direction','Employees','IT department','Clients','Suppliers','Ac
 const EFFECTS = {none:'Evidence only', p:'Raises probability +1', i:'Raises impact +1'};
 const DEFAULT_ASSUMP = {lik:[0.05,0.15,0.35,0.65], imp:[5000,40000,300000,1200000]};
 const TEAM = ['Anish','Mereena','Sudheer','Fatah','Rambabu','Krishna','Niranjan'];
+const PHONE_TOPIC = 'novatech-rw-646087d3502ba9ca'; /* the team's private ntfy channel */
+const TOPIC_OK = /^[A-Za-z0-9_-]{8,64}$/;
+const SITE_URL = /^https?:/.test(location.protocol) ? location.origin + location.pathname : 'https://ar-base.github.io/novatech-risk-watch/';
 const P_LABEL = ['Rare','Possible','Likely','Almost certain'];
 const I_LABEL = ['Minor','Moderate','Major','Critical'];
 const STATUS = {not:{label:'Not started',v:0}, prog:{label:'In progress',v:0.5}, done:{label:'Done',v:1}};
@@ -398,10 +401,10 @@ const S = {
   kri:{}, actions:{}, acks:{}, reassess:{}, assumptions:null,
   loaded:{kri:false}, levels:{}, profiles:{}, pending:new Set(),
   tab:'overview', alertFilter:'all', heatMode:'now', reg:{level:'all', analyst:'all', q:''},
-  prefs:{notifyMin:8, toasts:true, repeat:30, sound:true, system:true, me:''}, openRisk:null, errors:{}, bannerDismissed:false,
+  prefs:{notifyMin:8, toasts:true, repeat:30, sound:true, system:true, me:'', phone:true, phoneEvery:15, topic:PHONE_TOPIC}, openRisk:null, errors:{}, bannerDismissed:false,
   clues:[], cluesLoaded:false, localIds:new Set(), snooze:{}, clue:{dept:'IT department', text:'', risks:[], effect:'none'},
 };
-try { const p = JSON.parse(localStorage.getItem('novatech-riskwatch-prefs') || 'null'); if (p && typeof p === 'object') { if ([1,8,12].includes(p.notifyMin)) S.prefs.notifyMin = p.notifyMin; if ([15,30,60,300].includes(p.repeat)) S.prefs.repeat = p.repeat; if (typeof p.sound === 'boolean') S.prefs.sound = p.sound; if (typeof p.system === 'boolean') S.prefs.system = p.system; if (TEAM.includes(p.me)) S.prefs.me = p.me; } } catch (e) {}
+try { const p = JSON.parse(localStorage.getItem('novatech-riskwatch-prefs') || 'null'); if (p && typeof p === 'object') { if ([1,8,12].includes(p.notifyMin)) S.prefs.notifyMin = p.notifyMin; if ([15,30,60,300].includes(p.repeat)) S.prefs.repeat = p.repeat; if (typeof p.sound === 'boolean') S.prefs.sound = p.sound; if (typeof p.system === 'boolean') S.prefs.system = p.system; if (TEAM.includes(p.me)) S.prefs.me = p.me; if (typeof p.phone === 'boolean') S.prefs.phone = p.phone; if ([5,15,30,60].includes(p.phoneEvery)) S.prefs.phoneEvery = p.phoneEvery; if (typeof p.topic === 'string' && TOPIC_OK.test(p.topic)) S.prefs.topic = p.topic; } } catch (e) {}
 function savePrefs(){ try { localStorage.setItem('novatech-riskwatch-prefs', JSON.stringify(S.prefs)); } catch (e) {} }
 try { const t = localStorage.getItem('riskwatch-tab'); if (['overview','register','mitigation','benefits','method'].includes(t)) S.tab = t; } catch (e) {}
 const hashTab = (location.hash || '').slice(1);
@@ -632,7 +635,7 @@ function alertsPanel(al){
   else body = el('ul', {class:'alerts'}, ...list.map(alertItem));
   return el('section', {class:'panel', id:'alerts', 'aria-labelledby':'alerts-h'},
     el('div', {class:'panel-h'}, el('div', null, el('h2', {id:'alerts-h', text:'Alerts before the risk hits'}), el('p', {class:'hint', text:'Leading indicators per risk, ranked by severity and risk score'})), seg),
-    el('div', {class:'settings'}, el('label', {for:'notify-min'}, 'Notify me for', sel), el('label', {for:'notify-pop'}, tog, 'Notifications'), el('label', {for:'notify-repeat'}, 'Repeat every', rpt), el('label', {for:'notify-sound'}, snd, 'Sound'), sysBtn),
+    el('div', {class:'settings'}, el('label', {for:'notify-min'}, 'Notify me for', sel), el('label', {for:'notify-pop'}, tog, 'Notifications'), el('label', {for:'notify-repeat'}, 'Repeat every', rpt), el('label', {for:'notify-sound'}, snd, 'Sound'), sysBtn, el('button', {class:'btn', type:'button', onclick:() => { S.tab = 'method'; render(); const ph = document.getElementById('phone'); if (ph) ph.scrollIntoView({block:'start'}); }}, S.prefs.phone ? 'Phone alerts: on' : 'Set up phone alerts')),
     body);
 }
 function alertItem(a){
@@ -696,12 +699,15 @@ async function logClue(){
   const doc = {text, dept:c.dept, risks:c.risks.slice(0, 6), effect:c.effect, at:new Date().toISOString(), by:S.myId || null};
   const ok = await guarded('clue', async () => { const ref = await S.db.collection('clues').add(doc); S.localIds.add(ref.id); });
   if (!ok) return;
+  const raised = [];
   if (c.effect !== 'none') {
     for (const rid of doc.risks) {
       const r = riskById[rid], a = inh(r), next = {p:a.p, i:a.i}; next[c.effect] = clampPI(next[c.effect] + 1);
+      if (next.p * next.i >= 12 && a.p * a.i < 12) raised.push(`${r.id} ${r.name} is now CRITICAL (score ${next.p * next.i})`); else if (next.p * next.i > a.p * a.i) raised.push(`${r.id} ${r.name} raised to score ${next.p * next.i}`);
       if (next.p !== a.p || next.i !== a.i) await guarded('reassess/' + rid, () => S.db.doc('reassess/' + rid).set({p:next.p, i:next.i, at:new Date().toISOString(), by:S.myId || null}));
     }
   }
+  phonePush(raised.some(x => x.includes('CRITICAL')) ? `Risk now critical (clue from ${doc.dept})` : `New clue from ${doc.dept}`, [doc.text, ...raised].join('\n') + (doc.risks.length ? `\nRisks: ${doc.risks.join(', ')}` : '') + (S.myId ? `\nLogged by ${S.myId}` : ''), raised.some(x => x.includes('CRITICAL')) ? 5 : raised.length ? 4 : 3, [raised.length ? 'rotating_light' : 'mag']);
   S.clue = {dept:c.dept, text:'', risks:[], effect:'none'}; schedule();
 }
 function resolveClueNames(){}
@@ -899,7 +905,25 @@ function viewMethod(){
       el('td', {class:'num', text:`${cmp(k)} ${fmtV(k, k.amber)}`}), el('td', {class:'num', text:`${cmp(k)} ${fmtV(k, k.red)}`}),
       el('td', null, st.last ? el('span', {style:'display:inline-flex;gap:6px;align-items:center'}, el('span', {class:'num', text:fmtV(k, st.last.v)}), pill(st.lv === 'critical' ? 'critical' : st.lv === 'warning' ? 'warning' : 'ok', KLEVEL_LABEL[st.lv])) : el('span', {class:'rsub', text:'No reading'})));
       tr.addEventListener('click', () => openRisk(k.risk)); return tr; }))));
-  return [el('section', {class:'panel'}, el('div', {class:'panel-h'}, el('h2', {text:'How the dashboard works'})),
+  const topicIn = el('input', {id:'phone-topic', type:'text', value:S.prefs.topic, maxlength:64, 'aria-label':'Phone alert channel', style:'font-family:var(--f-mono);padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);min-width:0;width:300px;max-width:100%'});
+  topicIn.addEventListener('change', () => { const v = topicIn.value.trim(); if (TOPIC_OK.test(v)) { S.prefs.topic = v; savePrefs(); S.errors.topic = null; } else S.errors.topic = 'Use 8–64 letters, digits, - or _.'; schedule(); });
+  const phoneOn = el('input', {type:'checkbox', id:'phone-on', checked:S.prefs.phone, onchange:e => { S.prefs.phone = e.target.checked; savePrefs(); schedule(); }});
+  const every = el('select', {id:'phone-every', 'aria-label':'Phone reminder every'}, ...[[5,'5 min'],[15,'15 min'],[30,'30 min'],[60,'1 hour']].map(([v, t]) => el('option', {value:v, selected:S.prefs.phoneEvery === v}, t)));
+  every.addEventListener('change', () => { S.prefs.phoneEvery = Number(every.value); savePrefs(); });
+  const copyBtn = el('button', {class:'btn', type:'button', onclick:async e => { const b = e.currentTarget; try { await navigator.clipboard.writeText(S.prefs.topic); b.textContent = 'Copied'; } catch (err) { topicIn.select(); b.textContent = 'Press Ctrl+C'; } setTimeout(() => { b.textContent = 'Copy'; }, 1800); }}, 'Copy');
+  const testBtn = el('button', {class:'btn primary', type:'button', onclick:async e => { const b = e.currentTarget; b.disabled = true; b.textContent = 'Sending…'; const ok = await phonePush('Test alert from NOVATECH Risk Watch', `If you can read this on your phone, phone alerts work.${S.myId ? ' Sent by ' + S.myId + '.' : ''}`, 4, ['white_check_mark'], true); b.disabled = false; b.textContent = ok ? 'Sent: check your phone' : 'Could not send: check the internet connection'; setTimeout(() => schedule(), 4000); }}, 'Send a test alert to my phone');
+  const phonePanel = el('section', {class:'panel', id:'phone'}, el('div', {class:'panel-h'}, el('div', null, el('h2', {text:'Get alerts on your phone'}), el('p', {class:'hint', text:'Works while you travel: your phone gets a push notification even when the dashboard is closed on it.'})),
+      el('label', {for:'phone-on', class:'rsub', style:'display:inline-flex;gap:6px;align-items:center'}, phoneOn, 'Send phone alerts')),
+    el('div', {class:'panel-b prose', style:'max-width:none'},
+      el('ol', {style:'padding-left:20px;display:grid;gap:8px;margin:0 0 14px'},
+        el('li', null, 'Install the free ', el('b', {text:'ntfy'}), ' app on your phone: Google Play or App Store, search “ntfy”.'),
+        el('li', null, 'Open it, tap ', el('b', {text:'+'}), ', type the team channel below (server: ntfy.sh) and tap ', el('b', {text:'Subscribe'}), '. On iPhone, allow notifications when asked.'),
+        el('li', null, 'Tap ', el('b', {text:'Send a test alert'}), ' below. Your phone should buzz within a few seconds.')),
+      el('div', {style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'}, el('label', {for:'phone-topic', class:'rsub'}, 'Team channel'), topicIn, copyBtn, testBtn),
+      S.errors.topic ? el('p', {class:'err', role:'alert', text:S.errors.topic}) : null,
+      el('p', {class:'footnote', style:'margin-top:12px'}, 'Your phone is alerted when a logged reading turns an indicator amber or red, when a clue is logged (marked urgent if it makes a risk critical), and with a reminder of open alerts every ', every, ' while the dashboard is open on any computer and notifications are on. Everyone who subscribes to the channel gets the alerts, so share it only with the team.'),
+      phoneState.at ? el('p', {class:'footnote', style:'margin-top:6px;color:' + (phoneState.ok ? 'var(--low)' : 'var(--crit)'), text:(phoneState.ok ? 'Last phone alert sent ' : 'Last phone alert failed ') + ago(new Date(phoneState.at).toISOString()) + '.'}) : null));
+  return [phonePanel, el('section', {class:'panel'}, el('div', {class:'panel-h'}, el('h2', {text:'How the dashboard works'})),
     el('div', {class:'panel-b prose'},
       el('h3', {text:'1. Scoring'}),
       el('p', {text:'Each risk is scored Probability (1 rare – 4 almost certain) × Impact (1 minor – 4 critical), from 1 to 16. Critical is 12–16, high 8–11, moderate 5–7 and low 1–4. “Before” is the team’s assessment from the report, “After plan” is the residual score once every linked action is done, and “Now” moves between the two as actions are marked in progress (half) or done.'}),
@@ -1056,10 +1080,36 @@ setInterval(() => {
   const n = S.prefs.toasts ? openAlerts().length : 0;
   const now = Date.now(); let woke = false; for (const [id, until] of Object.entries(S.snooze)) if (until <= now) { delete S.snooze[id]; woke = true; }
   if (woke) { schedule(); ring(true); }
+  phoneReminder();
   titleFlip = !titleFlip;
   document.title = n ? (titleFlip ? `(${n}) Alert · NOVATECH Risk Watch` : 'NOVATECH Risk Watch') : 'NOVATECH Risk Watch';
   ring(false);
 }, 1000);
+
+/* ───────────── Phone alerts (ntfy push) ───────────── */
+/* Publishes to the team's ntfy channel; every phone subscribed in the ntfy app gets a push notification. */
+let phoneState = {ok:null, at:0};
+async function phonePush(title, message, priority, tags, force){
+  if ((!S.prefs.phone && !force) || !TOPIC_OK.test(S.prefs.topic)) return false;
+  const body = JSON.stringify({topic:S.prefs.topic, title:String(title).slice(0, 120), message:String(message).slice(0, 900), priority:Math.max(1, Math.min(5, priority || 3)), tags:tags || [], click:SITE_URL});
+  try {
+    const r = await fetch('https://ntfy.sh/', {method:'POST', body});
+    phoneState = {ok:r.ok, at:Date.now()};
+  } catch (e) { phoneState = {ok:false, at:Date.now()}; }
+  schedule();
+  return phoneState.ok;
+}
+const PHONE_KEY = 'novatech-riskwatch-lastphone';
+function phoneReminder(){
+  if (!S.prefs.toasts || !S.prefs.phone || !S.loaded.kri) return;
+  const open = openAlerts(); if (!open.length) return;
+  let last = 0; try { last = Number(localStorage.getItem(PHONE_KEY)) || 0; } catch (e) {}
+  if (Date.now() - last < S.prefs.phoneEvery * 60000) return;
+  try { localStorage.setItem(PHONE_KEY, String(Date.now())); } catch (e) {}
+  const crit = open.some(a => a.tier === 'critical');
+  const lines = open.slice(0, 4).map(a => `• ${a.r.id} ${a.r.name} (score ${a.score}): ${a.k.name} ${fmtV(a.k, a.st.last.v)}`);
+  phonePush(`${open.length} open risk alert${open.length > 1 ? 's' : ''}`, lines.join('\n') + (open.length > 4 ? `\n+${open.length - 4} more` : ''), crit ? 5 : 4, [crit ? 'rotating_light' : 'warning']);
+}
 
 /* ───────────── Writes ───────────── */
 const canEdit = () => S.canWrite !== false && !!S.db;
@@ -1078,6 +1128,7 @@ async function guarded(key, fn){
   } finally { S.pending.delete(key); schedule(); }
 }
 async function saveReading(k, raw){
+  const lvBefore = kriState(k).lv;
   const s = String(raw || '').trim().replace(',', '.');
   let err = null;
   if (!s) err = 'Enter a number.';
@@ -1089,7 +1140,9 @@ async function saveReading(k, raw){
   const lastAt = prev.reduce((m, x) => { const t = Date.parse(x && x.at); return Number.isFinite(t) && t > m ? t : m; }, 0);
   prev.push({v, at:new Date(Math.max(Date.now(), lastAt + 1000)).toISOString(), by:S.myId || null});
   const ok = await guarded('kri/' + k.id, () => S.db.doc('kri/' + k.id).set({readings:prev.slice(-26)}));
-  if (ok) { const f = document.getElementById('in-' + k.id); if (f) f.value = ''; }
+  if (ok) { const f = document.getElementById('in-' + k.id); if (f) f.value = '';
+    const lvAfter = kriLevel(k, v), r = riskById[k.risk];
+    if (KRANK[lvAfter] > KRANK[lvBefore] && KRANK[lvAfter] >= 2) phonePush(`${lvAfter === 'critical' ? 'RED' : 'AMBER'}: ${r.id} ${r.name}`, `${k.name} is now ${fmtV(k, v)} (${lvAfter === 'critical' ? 'red' : 'amber'} at ${cmp(k)} ${fmtV(k, lvAfter === 'critical' ? k.red : k.amber)}).${S.myId ? ' Logged by ' + S.myId + '.' : ''}`, lvAfter === 'critical' ? 5 : 4, [lvAfter === 'critical' ? 'rotating_light' : 'warning']); }
 }
 function setStatus(aid, v){ return guarded('actions/' + aid, () => S.db.doc('actions/' + aid).set({status:v, at:new Date().toISOString(), by:S.myId || null})); }
 function acknowledge(k){ const tt = document.querySelector(`#toasts [data-key="${k.id}"]`); if (tt) tt.remove(); S.snooze[k.id] = Date.now() + 5 * 60000; schedule(); }
