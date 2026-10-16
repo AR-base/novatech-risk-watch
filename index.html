@@ -401,10 +401,10 @@ const S = {
   kri:{}, actions:{}, acks:{}, reassess:{}, assumptions:null,
   loaded:{kri:false}, levels:{}, profiles:{}, pending:new Set(),
   tab:'overview', alertFilter:'all', heatMode:'now', reg:{level:'all', analyst:'all', q:''},
-  prefs:{notifyMin:8, toasts:true, repeat:30, sound:true, system:true, me:'', phone:true, phoneEvery:15, topic:PHONE_TOPIC}, openRisk:null, errors:{}, bannerDismissed:false,
+  prefs:{notifyMin:8, toasts:true, repeat:30, sound:true, system:true, me:'', phone:true, phoneEverySec:30, topic:PHONE_TOPIC}, openRisk:null, errors:{}, bannerDismissed:false,
   clues:[], cluesLoaded:false, localIds:new Set(), snooze:{}, clue:{dept:'IT department', text:'', risks:[], effect:'none'},
 };
-try { const p = JSON.parse(localStorage.getItem('novatech-riskwatch-prefs') || 'null'); if (p && typeof p === 'object') { if ([1,8,12].includes(p.notifyMin)) S.prefs.notifyMin = p.notifyMin; if ([15,30,60,300].includes(p.repeat)) S.prefs.repeat = p.repeat; if (typeof p.sound === 'boolean') S.prefs.sound = p.sound; if (typeof p.system === 'boolean') S.prefs.system = p.system; if (TEAM.includes(p.me)) S.prefs.me = p.me; if (typeof p.phone === 'boolean') S.prefs.phone = p.phone; if ([5,15,30,60].includes(p.phoneEvery)) S.prefs.phoneEvery = p.phoneEvery; if (typeof p.topic === 'string' && TOPIC_OK.test(p.topic)) S.prefs.topic = p.topic; } } catch (e) {}
+try { const p = JSON.parse(localStorage.getItem('novatech-riskwatch-prefs') || 'null'); if (p && typeof p === 'object') { if ([1,8,12].includes(p.notifyMin)) S.prefs.notifyMin = p.notifyMin; if ([15,30,60,300].includes(p.repeat)) S.prefs.repeat = p.repeat; if (typeof p.sound === 'boolean') S.prefs.sound = p.sound; if (typeof p.system === 'boolean') S.prefs.system = p.system; if (TEAM.includes(p.me)) S.prefs.me = p.me; if (typeof p.phone === 'boolean') S.prefs.phone = p.phone; if ([10,30,60,300,900,1800,3600].includes(p.phoneEverySec)) S.prefs.phoneEverySec = p.phoneEverySec; if (typeof p.topic === 'string' && TOPIC_OK.test(p.topic)) S.prefs.topic = p.topic; } } catch (e) {}
 function savePrefs(){ try { localStorage.setItem('novatech-riskwatch-prefs', JSON.stringify(S.prefs)); } catch (e) {} }
 try { const t = localStorage.getItem('riskwatch-tab'); if (['overview','register','mitigation','benefits','method'].includes(t)) S.tab = t; } catch (e) {}
 const hashTab = (location.hash || '').slice(1);
@@ -908,8 +908,8 @@ function viewMethod(){
   const topicIn = el('input', {id:'phone-topic', type:'text', value:S.prefs.topic, maxlength:64, 'aria-label':'Phone alert channel', style:'font-family:var(--f-mono);padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);min-width:0;width:300px;max-width:100%'});
   topicIn.addEventListener('change', () => { const v = topicIn.value.trim(); if (TOPIC_OK.test(v)) { S.prefs.topic = v; savePrefs(); S.errors.topic = null; } else S.errors.topic = 'Use 8–64 letters, digits, - or _.'; schedule(); });
   const phoneOn = el('input', {type:'checkbox', id:'phone-on', checked:S.prefs.phone, onchange:e => { S.prefs.phone = e.target.checked; savePrefs(); schedule(); }});
-  const every = el('select', {id:'phone-every', 'aria-label':'Phone reminder every'}, ...[[5,'5 min'],[15,'15 min'],[30,'30 min'],[60,'1 hour']].map(([v, t]) => el('option', {value:v, selected:S.prefs.phoneEvery === v}, t)));
-  every.addEventListener('change', () => { S.prefs.phoneEvery = Number(every.value); savePrefs(); });
+  const every = el('select', {id:'phone-every', 'aria-label':'Phone reminder every'}, ...[[10,'10 s (demo)'],[30,'30 s'],[60,'1 min'],[300,'5 min'],[900,'15 min'],[1800,'30 min'],[3600,'1 hour']].map(([v, t]) => el('option', {value:v, selected:S.prefs.phoneEverySec === v}, t)));
+  every.addEventListener('change', () => { S.prefs.phoneEverySec = Number(every.value); savePrefs(); lastPhone = 0; });
   const copyBtn = el('button', {class:'btn', type:'button', onclick:async e => { const b = e.currentTarget; try { await navigator.clipboard.writeText(S.prefs.topic); b.textContent = 'Copied'; } catch (err) { topicIn.select(); b.textContent = 'Press Ctrl+C'; } setTimeout(() => { b.textContent = 'Copy'; }, 1800); }}, 'Copy');
   const testBtn = el('button', {class:'btn primary', type:'button', onclick:async e => { const b = e.currentTarget; b.disabled = true; b.textContent = 'Sending…'; const ok = await phonePush('Test alert from NOVATECH Risk Watch', `If you can read this on your phone, phone alerts work.${S.myId ? ' Sent by ' + S.myId + '.' : ''}`, 4, ['white_check_mark'], true); b.disabled = false; b.textContent = ok ? 'Sent: check your phone' : 'Could not send: check the internet connection'; setTimeout(() => schedule(), 4000); }}, 'Send a test alert to my phone');
   const phonePanel = el('section', {class:'panel', id:'phone'}, el('div', {class:'panel-h'}, el('div', null, el('h2', {text:'Get alerts on your phone'}), el('p', {class:'hint', text:'Works while you travel: your phone gets a push notification even when the dashboard is closed on it.'})),
@@ -921,8 +921,8 @@ function viewMethod(){
         el('li', null, 'Tap ', el('b', {text:'Send a test alert'}), ' below. Your phone should buzz within a few seconds.')),
       el('div', {style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'}, el('label', {for:'phone-topic', class:'rsub'}, 'Team channel'), topicIn, copyBtn, testBtn),
       S.errors.topic ? el('p', {class:'err', role:'alert', text:S.errors.topic}) : null,
-      el('p', {class:'footnote', style:'margin-top:12px'}, 'Your phone is alerted when a logged reading turns an indicator amber or red, when a clue is logged (marked urgent if it makes a risk critical), and with a reminder of open alerts every ', every, ' while the dashboard is open on any computer and notifications are on. Everyone who subscribes to the channel gets the alerts, so share it only with the team.'),
-      phoneState.at ? el('p', {class:'footnote', style:'margin-top:6px;color:' + (phoneState.ok ? 'var(--low)' : 'var(--crit)'), text:(phoneState.ok ? 'Last phone alert sent ' : 'Last phone alert failed ') + ago(new Date(phoneState.at).toISOString()) + '.'}) : null));
+      el('p', {class:'footnote', style:'margin-top:12px'}, 'Your phone is alerted when a logged reading turns an indicator amber or red, when a clue is logged (marked urgent if it makes a risk critical), as soon as the dashboard is opened or reloaded, and then with a reminder of open alerts every ', every, ' until the alerts are acknowledged or notifications are stopped. The free ntfy.sh service allows only a limited number of alerts a day, so use 10 s for the demo and a slower setting the rest of the time. Everyone who subscribes to the channel gets the alerts, so share it only with the team.'),
+      phoneState.at ? el('p', {class:'footnote', style:'margin-top:6px;color:' + (phoneState.ok ? 'var(--low)' : 'var(--crit)'), text:(phoneState.ok ? 'Last phone alert sent ' : phoneState.limited ? 'Paused by ntfy.sh rate limit, ' : 'Last phone alert failed ') + ago(new Date(phoneState.at).toISOString()) + '.'}) : null));
   return [phonePanel, el('section', {class:'panel'}, el('div', {class:'panel-h'}, el('h2', {text:'How the dashboard works'})),
     el('div', {class:'panel-b prose'},
       el('h3', {text:'1. Scoring'}),
@@ -1089,12 +1089,15 @@ setInterval(() => {
 /* ───────────── Phone alerts (ntfy push) ───────────── */
 /* Publishes to the team's ntfy channel; every phone subscribed in the ntfy app gets a push notification. */
 let phoneState = {ok:null, at:0};
+let phoneBackoff = 0, lastPhone = 0; /* lastPhone resets on reload, so every reload alerts the phone at once */
 async function phonePush(title, message, priority, tags, force){
   if ((!S.prefs.phone && !force) || !TOPIC_OK.test(S.prefs.topic)) return false;
   const body = JSON.stringify({topic:S.prefs.topic, title:String(title).slice(0, 120), message:String(message).slice(0, 900), priority:Math.max(1, Math.min(5, priority || 3)), tags:tags || [], click:SITE_URL});
+  if (!force && Date.now() < phoneBackoff) return false;
   try {
     const r = await fetch('https://ntfy.sh/', {method:'POST', body});
-    phoneState = {ok:r.ok, at:Date.now()};
+    phoneState = {ok:r.ok, at:Date.now(), limited:r.status === 429};
+    if (r.status === 429) { phoneBackoff = Date.now() + 10 * 60000; toast('info', 'Phone alerts paused for 10 minutes', 'ntfy.sh says too many alerts were sent. Choose a slower phone reminder to avoid this.'); }
   } catch (e) { phoneState = {ok:false, at:Date.now()}; }
   schedule();
   return phoneState.ok;
@@ -1103,9 +1106,8 @@ const PHONE_KEY = 'novatech-riskwatch-lastphone';
 function phoneReminder(){
   if (!S.prefs.toasts || !S.prefs.phone || !S.loaded.kri) return;
   const open = openAlerts(); if (!open.length) return;
-  let last = 0; try { last = Number(localStorage.getItem(PHONE_KEY)) || 0; } catch (e) {}
-  if (Date.now() - last < S.prefs.phoneEvery * 60000) return;
-  try { localStorage.setItem(PHONE_KEY, String(Date.now())); } catch (e) {}
+  if (Date.now() - lastPhone < S.prefs.phoneEverySec * 1000 || Date.now() < phoneBackoff) return;
+  lastPhone = Date.now();
   const crit = open.some(a => a.tier === 'critical');
   const lines = open.slice(0, 4).map(a => `• ${a.r.id} ${a.r.name} (score ${a.score}): ${a.k.name} ${fmtV(a.k, a.st.last.v)}`);
   phonePush(`${open.length} open risk alert${open.length > 1 ? 's' : ''}`, lines.join('\n') + (open.length > 4 ? `\n+${open.length - 4} more` : ''), crit ? 5 : 4, [crit ? 'rotating_light' : 'warning']);
