@@ -418,6 +418,7 @@ textarea{padding:10px 12px}
 .cp-risk{background:var(--panel-2);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:10px;border:1px solid transparent;transition:opacity .3s,border-color .3s}
 .cp-risk.dim{opacity:.35}
 .cp-risk.done{opacity:.7}
+#cp-ai.flash{animation:flash 2.4s var(--ease);border:1px solid transparent}
 .cp-risk.flash{animation:flash 1.6s var(--ease)}
 @keyframes flash{0%,40%{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}100%{border-color:transparent;box-shadow:none}}
 .cp-risk-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -597,7 +598,7 @@ const S = {
 try { const p = JSON.parse(localStorage.getItem('novatech-riskwatch-prefs') || 'null'); if (p && typeof p === 'object') { if ([1,8,12].includes(p.notifyMin)) S.prefs.notifyMin = p.notifyMin; if ([15,30,60,300].includes(p.repeat)) S.prefs.repeat = p.repeat; if (typeof p.sound === 'boolean') S.prefs.sound = p.sound; if (typeof p.system === 'boolean') S.prefs.system = p.system; if (TEAM.includes(p.me)) S.prefs.me = p.me; if (typeof p.phone === 'boolean') S.prefs.phone = p.phone; if ([10,30,60,300,900,1800,3600].includes(p.phoneEverySec)) S.prefs.phoneEverySec = p.phoneEverySec; if (typeof p.topic === 'string' && TOPIC_OK.test(p.topic)) S.prefs.topic = p.topic; if (p.theme === 'light' || p.theme === 'dark') S.prefs.theme = p.theme; if (p.lang === 'en' || p.lang === 'fr') S.prefs.lang = p.lang; } } catch (e) {}
 function savePrefs(){ try { localStorage.setItem('novatech-riskwatch-prefs', JSON.stringify(S.prefs)); } catch (e) {} }
 try { const t = localStorage.getItem('riskwatch-tab'); if (['overview','founder','register','mitigation','benefits','method'].includes(t)) S.tab = t; } catch (e) {}
-const hashTab = ((location.hash || '').slice(1) === 'copilot') ? 'founder' : (location.hash || '').slice(1);
+const hashRaw = (location.hash || '').slice(1); const hashTab = (hashRaw === 'copilot' || hashRaw === 'ai') ? 'founder' : hashRaw;
 if (['overview','founder','register','mitigation','benefits','method'].includes(hashTab)) S.tab = hashTab;
 
 /* ───────────── Model maths ───────────── */
@@ -2302,6 +2303,7 @@ let rz = 0; window.addEventListener('resize', () => { clearTimeout(rz); rz = set
 snapStatic();
 applyLang();
 start();
+if (hashRaw === 'ai') setTimeout(() => { const c = document.getElementById('cp-ai'); if (c) { c.scrollIntoView({block:'center'}); c.classList.add('flash'); } }, 400);
 })();
 </script>
 </body>
