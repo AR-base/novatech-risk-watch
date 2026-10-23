@@ -1590,6 +1590,7 @@ const CP_AREAS = [['money','Money','Argent'],['customers','Customers','Clients']
 const AREA_IX = Object.fromEntries(CP_AREAS.map((a, k) => [a[0], k]));
 const COSTS = ['Free','€','€€','€€€'];
 const AI_MODEL = 'claude-haiku-4-5-20251001';
+const TEAM_AI_URL = 'https://novatech-risk-watch.psaianish2001.workers.dev/'; /* the team's AI server (Cloudflare Worker, holds the Claude key) */
 
 /* Interview. Option rows: [value, English, French]. */
 const CP_QS = [
@@ -1844,7 +1845,7 @@ function cleanRisk(r, lang){
   return o;
 }
 function loadCp(){
-  const base = {answers:clone(CP_DEFAULT), step:0, risks:null, done:{}, adjust:{}, incidents:[], ai:{mode:'builtin', url:''}, engine:'rule'};
+  const base = {answers:clone(CP_DEFAULT), step:0, risks:null, done:{}, adjust:{}, incidents:[], ai:{mode:'server', url:TEAM_AI_URL}, engine:'rule'};
   try {
     const o = JSON.parse(localStorage.getItem(CP_KEY) || 'null'); if (!o || typeof o !== 'object') return base;
     base.answers = cleanAnswers(o.answers);
@@ -1908,7 +1909,15 @@ async function aiJSON(system, user){
       const url = safeUrl(CP.ai.url); if (!url) throw new Error(L('Add the address of your AI server first.', 'Ajoutez d’abord l’adresse de votre serveur IA.'));
       res = await fetch(url, {method:'POST', signal:ctrl.signal, headers:{'content-type':'application/json'}, body:JSON.stringify({system, messages})});
     } else throw new Error('builtin');
-    if (!res.ok) throw new Error(res.status === 401 ? L('The API key was refused.', 'La clé API a été refusée.') : res.status === 429 ? L('The AI is busy or over its limit. Try again in a minute.', 'L’IA est saturée ou a atteint sa limite. Réessayez dans une minute.') : `HTTP ${res.status}`);
+    if (!res.ok) {
+      let detail = ''; try { const e = await res.json(); detail = cleanStr(typeof e.error === 'string' ? e.error : (e.error && e.error.message) || '', 160); } catch (x) {}
+      if (/key not configured/i.test(detail)) throw new Error(L('The AI server has no Claude key yet. In Cloudflare, open the worker → Settings → Variables and Secrets, add a Secret named ANTHROPIC_API_KEY, then deploy.', 'Le serveur IA n’a pas encore de clé Claude. Dans Cloudflare, ouvrez le worker → Settings → Variables and Secrets, ajoutez un secret nommé ANTHROPIC_API_KEY, puis déployez.'));
+      if (/origin not allowed/i.test(detail)) throw new Error(L('The AI server refuses this website. Add its address to ALLOWED_ORIGINS on the server.', 'Le serveur IA refuse ce site. Ajoutez son adresse dans ALLOWED_ORIGINS sur le serveur.'));
+      if (res.status === 401 || /authentication|api.key|x-api-key/i.test(detail)) throw new Error(L('The Claude key was refused. Create a new key at console.anthropic.com (it starts with sk-ant-api03-) and use that.', 'La clé Claude a été refusée. Créez une nouvelle clé sur console.anthropic.com (elle commence par sk-ant-api03-) et utilisez-la.'));
+      if (res.status === 429) throw new Error(L('The AI is busy or over its limit. Try again in a minute.', 'L’IA est saturée ou a atteint sa limite. Réessayez dans une minute.'));
+      if (/credit|billing|balance/i.test(detail)) throw new Error(L('Your Anthropic account has no credit. Add some under Billing at console.anthropic.com.', 'Votre compte Anthropic n’a plus de crédit. Ajoutez-en dans Billing sur console.anthropic.com.'));
+      throw new Error(`HTTP ${res.status}${detail ? ': ' + detail : ''}`);
+    }
     const j = await res.json();
     const txt = Array.isArray(j.content) ? j.content.filter(c => c && c.type === 'text').map(c => String(c.text)).join('') : '';
     const a = txt.indexOf('{'), b = txt.lastIndexOf('}'); if (a < 0 || b <= a) throw new Error(L('The AI answer could not be read.', 'La réponse de l’IA est illisible.'));
