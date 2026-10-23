@@ -26,6 +26,7 @@ export default {
     const origin = request.headers.get('Origin') || '';
     const h = cors(origin, allowed);
     if (request.method === 'OPTIONS') return new Response(null, {status: 204, headers: h});
+    if (request.method === 'GET') return new Response('NOVATECH Risk Watch AI server is running. ' + (env.ANTHROPIC_API_KEY ? 'Claude key: set.' : 'Claude key: MISSING (add the secret ANTHROPIC_API_KEY in Cloudflare).') + ' Paste this address into Start-up co-pilot > Analysis engine > Claude: AI server.', {status: 200, headers: {...h, 'content-type': 'text/plain; charset=utf-8'}});
     if (request.method !== 'POST') return reply(405, {error: 'Use POST'}, h);
     if (!allowed.includes(origin)) return reply(403, {error: 'Origin not allowed'}, h);
     if (!env.ANTHROPIC_API_KEY) return reply(500, {error: 'Server key not configured'}, h);
