@@ -22,6 +22,31 @@ function cors(origin, allowed) {
 }
 const reply = (status, body, headers) => new Response(typeof body === 'string' ? body : JSON.stringify(body), {status, headers: {...headers, 'content-type': 'application/json'}});
 
+/* Status page: opening the server address in a browser tells you whether the Claude key works. Checked at most once a minute. */
+let lastCheck = {at: 0, text: ''};
+async function statusPage(KEY, env, h) {
+  const src = env.ANTHROPIC_API_KEY ? 'Cloudflare secret' : 'build settings';
+  let text;
+  if (!KEY) text = 'Claude key: MISSING. In Cloudflare open this worker > Settings > Variables and Secrets > Add: Type Secret, name ANTHROPIC_API_KEY, value your key from console.anthropic.com. Then click Deploy.';
+  else if (Date.now() - lastCheck.at < 60000) text = lastCheck.text;
+  else {
+    const kind = /^sk-ant-api/.test(KEY) ? 'API key format OK' : `this does not look like an API key (it starts with ${KEY.slice(0, 10)}…; API keys start with sk-ant-api03-)`;
+    let verdict;
+    try {
+      const r = await fetch('https://api.anthropic.com/v1/models?limit=1', {headers: {'x-api-key': KEY, 'anthropic-version': '2023-06-01'}});
+      const body = await r.text();
+      verdict = r.ok ? 'Anthropic accepted the key. AI is READY.'
+        : r.status === 401 ? 'Anthropic REFUSED the key (401). Create a new API key at console.anthropic.com > API Keys and put it in the ANTHROPIC_API_KEY secret.'
+        : /credit|billing|balance/i.test(body) ? 'The Anthropic account has no credit. Add credit at console.anthropic.com > Billing.'
+        : `Anthropic answered ${r.status}: ${body.slice(0, 160)}`;
+    } catch (e) { verdict = 'Could not reach Anthropic from Cloudflare: ' + String(e && e.message || e).slice(0, 120); }
+    text = `Claude key: found (from ${src}); ${kind}. ${verdict}`;
+    lastCheck = {at: Date.now(), text};
+  }
+  return new Response('NOVATECH Risk Watch AI server is running.\n' + text + '\nAllowed website: ' + ((env.ALLOWED_ORIGINS || 'https://ar-base.github.io')) + '\nAddress to paste in Start-up co-pilot > Analysis engine > Claude: AI server: this page\'s address.',
+    {status: 200, headers: {...h, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store'}});
+}
+
 export default {
   async fetch(request, env) {
     const KEY = env.ANTHROPIC_API_KEY || BUILD_KEY || '';
@@ -29,7 +54,7 @@ export default {
     const origin = request.headers.get('Origin') || '';
     const h = cors(origin, allowed);
     if (request.method === 'OPTIONS') return new Response(null, {status: 204, headers: h});
-    if (request.method === 'GET') return new Response('NOVATECH Risk Watch AI server is running. ' + (KEY ? 'Claude key: set.' : 'Claude key: MISSING (add the secret ANTHROPIC_API_KEY in Cloudflare).') + ' Paste this address into Start-up co-pilot > Analysis engine > Claude: AI server.', {status: 200, headers: {...h, 'content-type': 'text/plain; charset=utf-8'}});
+    if (request.method === 'GET') return statusPage(KEY, env, h);
     if (request.method !== 'POST') return reply(405, {error: 'Use POST'}, h);
     if (!allowed.includes(origin)) return reply(403, {error: 'Origin not allowed'}, h);
     if (!KEY) return reply(500, {error: 'Server key not configured'}, h);
