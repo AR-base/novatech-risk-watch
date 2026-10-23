@@ -4,6 +4,7 @@
   // The Claude key is a Worker secret (ANTHROPIC_API_KEY) set in the Cloudflare dashboard, never in this file.
   "name": "novatech-risk-watch",
   "main": "ai-server/worker.js",
+  "build": { "command": "node ai-server/write-build-key.mjs" },
   "compatibility_date": "2025-09-01",
   "workers_dev": true,
   "preview_urls": false,

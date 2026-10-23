@@ -3,6 +3,8 @@
 // Only the dashboard's own address may call it, requests are size-limited, the model and output length are fixed,
 // and each visitor is limited to a few calls per minute.
 
+import BUILD_KEY from './build-key.js';
+
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 2000;
 const MAX_BODY = 24000;          // bytes accepted from the browser
@@ -22,14 +24,15 @@ const reply = (status, body, headers) => new Response(typeof body === 'string' ?
 
 export default {
   async fetch(request, env) {
+    const KEY = env.ANTHROPIC_API_KEY || BUILD_KEY || '';
     const allowed = (env.ALLOWED_ORIGINS || 'https://ar-base.github.io').split(',').map(s => s.trim()).filter(Boolean);
     const origin = request.headers.get('Origin') || '';
     const h = cors(origin, allowed);
     if (request.method === 'OPTIONS') return new Response(null, {status: 204, headers: h});
-    if (request.method === 'GET') return new Response('NOVATECH Risk Watch AI server is running. ' + (env.ANTHROPIC_API_KEY ? 'Claude key: set.' : 'Claude key: MISSING (add the secret ANTHROPIC_API_KEY in Cloudflare).') + ' Paste this address into Start-up co-pilot > Analysis engine > Claude: AI server.', {status: 200, headers: {...h, 'content-type': 'text/plain; charset=utf-8'}});
+    if (request.method === 'GET') return new Response('NOVATECH Risk Watch AI server is running. ' + (KEY ? 'Claude key: set.' : 'Claude key: MISSING (add the secret ANTHROPIC_API_KEY in Cloudflare).') + ' Paste this address into Start-up co-pilot > Analysis engine > Claude: AI server.', {status: 200, headers: {...h, 'content-type': 'text/plain; charset=utf-8'}});
     if (request.method !== 'POST') return reply(405, {error: 'Use POST'}, h);
     if (!allowed.includes(origin)) return reply(403, {error: 'Origin not allowed'}, h);
-    if (!env.ANTHROPIC_API_KEY) return reply(500, {error: 'Server key not configured'}, h);
+    if (!KEY) return reply(500, {error: 'Server key not configured'}, h);
 
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
     const now = Date.now(), recent = (hits.get(ip) || []).filter(t => now - t < 60000);
@@ -47,7 +50,7 @@ export default {
 
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: {'content-type': 'application/json', 'x-api-key': env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01'},
+      headers: {'content-type': 'application/json', 'x-api-key': KEY, 'anthropic-version': '2023-06-01'},
       body: JSON.stringify({model: MODEL, max_tokens: MAX_TOKENS, system, messages}),
     });
     const text = await upstream.text();
