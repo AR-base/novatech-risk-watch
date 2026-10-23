@@ -402,6 +402,7 @@ textarea{padding:10px 12px}
 .q-opt[aria-checked="true"] .q-check::after{content:"";width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:translateY(-1px) rotate(-45deg)}
 .q-text{width:100%;font-size:18px;padding:14px 16px;border-radius:14px;border:1px solid var(--line);background:var(--panel)}
 .q-nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:4px}
+a.btn{display:inline-flex;align-items:center;text-decoration:none;align-self:flex-start}
 .btn.big{padding:11px 20px;font-size:15px}
 .btn.danger{background:var(--crit-soft);color:var(--crit)}
 .btn.ok{background:var(--low-soft);color:var(--low)}
@@ -2201,8 +2202,11 @@ function aiCard(){
   } else if (m === 'server') {
     const inp = el('input', {id:'cp-url', type:'url', placeholder:'https://novatech-ai.<you>.workers.dev', value:CP.ai.url, 'aria-label':L('AI server address', 'Adresse du serveur IA')});
     fields = el('div', {class:'cp-ai-f'},
-      el('div', {class:'cp-inc-row'}, inp, el('button', {class:'btn', type:'button', onclick:() => { const u = safeUrl(inp.value.trim()); if (!u) { CPV.aiTest = {ok:false, msg:L('Enter a full https:// address.', 'Saisissez une adresse https:// complète.')}; schedule(); return; } CP.ai.url = u; saveCp(); CPV.aiTest = {ok:true, msg:L('Server saved.', 'Serveur enregistré.')}; schedule(); }}, L('Save', 'Enregistrer'))),
-      el('p', {class:'q-hint', text:L('Your team’s AI server keeps the Claude key secret, so visitors need no key. Set-up steps are in the project’s README (ai-server folder).', 'Le serveur IA de votre équipe garde la clé Claude secrète : les visiteurs n’ont besoin d’aucune clé. Les étapes sont dans le README du projet (dossier ai-server).')}));
+      el('div', {class:'cp-inc-row'}, inp, el('button', {class:'btn', type:'button', onclick:() => { const u = safeUrl(inp.value.trim()); if (!u) { CPV.aiTest = {ok:false, msg:L('Enter a full https:// address.', 'Saisissez une adresse https:// complète.')}; schedule(); return; }
+          if (/yourname|<you>|%3Cyou%3E/i.test(u)) { CPV.aiTest = {ok:false, msg:L('That is the example address. Create your AI server first (button below), then paste the address Cloudflare gives you.', 'C’est l’adresse d’exemple. Créez d’abord votre serveur IA (bouton ci-dessous), puis collez l’adresse donnée par Cloudflare.')}; schedule(); return; } CP.ai.url = u; saveCp(); CPV.aiTest = {ok:true, msg:L('Server saved.', 'Serveur enregistré.')}; schedule(); }}, L('Save', 'Enregistrer'))),
+      el('p', {class:'q-hint', text:L('Your own AI server keeps the Claude key secret, so visitors need no key. No server yet? Create one in a few clicks: sign in to Cloudflare (free), paste your Claude key when asked, then copy the address it gives you (ending in .workers.dev) into the box above.',
+        'Votre serveur IA garde la clé Claude secrète : les visiteurs n’ont besoin d’aucune clé. Pas encore de serveur ? Créez-le en quelques clics : connectez-vous à Cloudflare (gratuit), collez votre clé Claude quand elle est demandée, puis copiez l’adresse obtenue (finissant par .workers.dev) dans le champ ci-dessus.')}),
+      el('a', {class:'btn primary', href:'https://deploy.workers.cloudflare.com/?url=https://github.com/AR-base/novatech-risk-watch/tree/main/ai-server', target:'_blank', rel:'noopener noreferrer'}, L('Create my AI server on Cloudflare', 'Créer mon serveur IA sur Cloudflare')));
   }
   const test = m === 'builtin' ? null : el('button', {class:'btn', type:'button', id:'cp-ai-test', disabled:CPV.busy === 'test', onclick:async () => {
     CPV.busy = 'test'; CPV.aiTest = null; schedule();

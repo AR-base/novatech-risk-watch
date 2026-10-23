@@ -27,7 +27,11 @@ Site: https://ar-base.github.io/novatech-risk-watch/ · co-pilot direct link: ht
 Two ways, chosen in *Start-up co-pilot → Analysis engine*:
 
 1. **My key:** each user pastes their own Claude API key (from console.anthropic.com). It is stored only in that browser and sent only to Anthropic.
-2. **AI server (recommended for a class or team):** one shared server holds the key, so visitors need nothing. Free on Cloudflare Workers:
+2. **AI server (recommended for a class or team):** one shared server holds the key, so visitors need nothing. Free on Cloudflare Workers.
+
+   **One click:** [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AR-base/novatech-risk-watch/tree/main/ai-server) — sign in to Cloudflare, paste your Claude key in the `ANTHROPIC_API_KEY` field, click *Create and deploy*, then copy the `…workers.dev` address into *Analysis engine → Claude: AI server*.
+
+   **Or by hand:**
    1. Create a free account at dash.cloudflare.com → *Workers & Pages* → *Create* → *Create Worker*, name it `novatech-ai`, then *Edit code* and paste the contents of [`ai-server/worker.js`](ai-server/worker.js). Click *Deploy*.
    2. In the worker's *Settings → Variables and secrets*, add a **secret** `ANTHROPIC_API_KEY` with your Claude key. Optionally add `ALLOWED_ORIGINS` (default `https://ar-base.github.io`).
    3. Copy the worker address (`https://novatech-ai.<your-name>.workers.dev`) into *Analysis engine → Claude: AI server* and press *Test connection*.

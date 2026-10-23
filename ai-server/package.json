@@ -1,0 +1,22 @@
+{
+  "name": "novatech-ai",
+  "private": true,
+  "description": "AI server for NOVATECH Risk Watch: keeps the Claude API key secret.",
+  "scripts": {
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "cloudflare": {
+    "label": "NOVATECH Risk Watch AI server",
+    "bindings": {
+      "ANTHROPIC_API_KEY": {
+        "description": "Your Claude API key from console.anthropic.com (starts with sk-ant-). It is stored as a secret on Cloudflare and never reaches the website's visitors."
+      },
+      "ALLOWED_ORIGINS": {
+        "description": "Websites allowed to use this AI server, separated by commas. Keep https://ar-base.github.io for the NOVATECH dashboard."
+      }
+    }
+  }
+}
