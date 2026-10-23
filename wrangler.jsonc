@@ -1,0 +1,12 @@
+{
+  // Cloudflare Worker "novatech-risk-watch": the AI server that keeps the Claude API key secret.
+  // Cloudflare builds this automatically from GitHub. The website itself is served by GitHub Pages.
+  "name": "novatech-risk-watch",
+  "main": "ai-server/worker.js",
+  "compatibility_date": "2025-09-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "vars": {
+    "ALLOWED_ORIGINS": "https://ar-base.github.io"
+  }
+}
