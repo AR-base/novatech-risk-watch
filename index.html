@@ -614,6 +614,30 @@ a.btn{display:inline-flex;align-items:center;text-decoration:none;align-self:fle
 .imp-line .btn.small{padding:4px 10px;font-size:12.5px}
 @media (max-width:600px){.imp-tiles{grid-template-columns:1fr}.imp-card{padding:20px 18px}.imp-card h2{font-size:24px}.imp-tile b{font-size:24px}}
 @media (prefers-reduced-motion:reduce){.imp-sheet,.imp-card,.imp-bar i,.imp-row u{animation:none}}
+/* ── CEO approval ── */
+.appr{border:1px solid color-mix(in srgb,var(--high) 45%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--high) 20%,transparent),var(--shadow)}
+.appr-list{list-style:none;margin:0;padding:0 20px 18px;display:flex;flex-direction:column;gap:10px}
+.appr-list li{border-radius:16px;padding:14px 16px;background:var(--panel-2)}
+.appr-list li.pending{background:color-mix(in srgb,var(--high) 10%,var(--panel-2))}
+.appr-h{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.appr-ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--panel-3);font-size:13px}
+.appr-list li.pending .appr-ic{animation:apprpulse 1.6s ease-in-out infinite}
+@keyframes apprpulse{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--high) 25%,transparent)}}
+.appr-meter{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:12px 0 4px}
+.appr-meter div{display:flex;flex-direction:column;gap:2px}
+.appr-meter span{font-size:12px;color:var(--muted)}
+.appr-meter b{font:800 22px var(--f-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.appr-meter b.bad{color:var(--crit)}
+.appr-btns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.appr-btns .muted{font-size:12.5px}
+.gov-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:0 20px 12px}
+.gov-grid label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted)}
+.gov-grid select{font:inherit;color:var(--ink);background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:9px 10px}
+.imp-appr{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin:-8px 0 14px;font-size:13.5px;color:var(--muted)}
+.imp-appr b{color:var(--high)}
+.appr-badge{font:700 11.5px var(--f-body);letter-spacing:.05em;text-transform:uppercase;color:#000;background:var(--high);border-radius:99px;padding:3px 9px}
+@media (max-width:600px){.appr-meter,.gov-grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.appr-list li.pending .appr-ic{animation:none}}
 </style>
 </head>
 <body>
@@ -1124,6 +1148,7 @@ function viewOverview(){
       'Values marked “From dossier” come from the NOVATECH file. Log a value from a risk’s panel when a clue gives one; alerts update for everyone straight away.')));
   }
   out.push(kpiTiles());
+  { const ap = approvalPanel(); if (ap) out.push(ap); }
   { const rp = responsePanel(); if (rp) out.push(rp); }
   out.push(el('div', {class:'grid2'}, alertsPanel(al), el('div', {style:'display:flex;flex-direction:column;gap:20px;min-width:0'}, heatPanel(), cluesPanel())));
   return out;
@@ -1172,7 +1197,7 @@ function alertItem(a){
       el('p', {class:'alert-msg', text:alertMessage(a)}),
       el('div', {class:'alert-row'}, spark(a.k, a.st.rs),
         el('div', {class:'alert-next', style:'min-width:0;flex:1'}, nx ? [el('b', {text:'Mitigation: '}), `${nx.id} ${nx.title} (${STATUS[actStatus(nx.id)].label.toLowerCase()})`] : [el('b', {text:'Mitigation: '}), 'all planned actions done — review the risk']),
-        el('div', {class:'alert-actions'}, el('button', {class:'btn danger', type:'button', title:'Run the response playbook: stop the alert, start the linked actions and log the incident', onclick:() => containRisk([a.r.id], 'dashboard')}, 'Contain'), el('button', {class:'btn', type:'button', onclick:() => openRisk(a.r.id)}, 'Open'), ackBtn))));
+        el('div', {class:'alert-actions'}, el('button', {class:'btn danger', type:'button', title:'Run the response playbook: stop the alert, start the linked actions and log the incident', disabled:!!pendingOf(a.r.id), onclick:() => containRisk([a.r.id], 'dashboard')}, containLabel(a.r.id)), el('button', {class:'btn', type:'button', onclick:() => openRisk(a.r.id)}, 'Open'), ackBtn))));
 }
 
 function cluesPanel(){
@@ -1440,12 +1465,13 @@ function viewMethod(){
         el('li', null, 'Install the free ', el('b', {text:'ntfy'}), ' app on your phone: Google Play or App Store, search “ntfy”.'),
         el('li', null, 'Open it, tap ', el('b', {text:'+'}), ', type the team channel below (server: ntfy.sh) and tap ', el('b', {text:'Subscribe'}), '. On iPhone, allow notifications when asked.'),
         el('li', null, 'Tap ', el('b', {text:'Send a test alert'}), ' below. Your phone should buzz within a few seconds.'),
-        el('li', null, 'Each risk alert on your phone has a ', el('b', {text:'Contain'}), ' button. Tapping it makes every open dashboard run that risk’s response playbook: the alert stops, the linked actions start, the incident is logged and your phone gets a confirmation.')),
+        el('li', null, 'Each risk alert on your phone has a ', el('b', {text:'Contain'}), ' button. Tapping it makes every open dashboard run that risk’s response playbook: the alert stops, the linked actions start, the incident is logged and your phone gets a confirmation.'),
+        el('li', {'data-notr':''}, L('When CEO approval is on (see below), Contain first sends a request to the CEO’s phone; the playbook runs once the CEO taps Approve.', 'Quand la validation du PDG est active (voir plus bas), Contenir envoie d’abord une demande sur le téléphone du PDG ; le plan démarre quand le PDG touche Valider.'))),
       el('div', {style:'display:flex;gap:8px;flex-wrap:wrap;align-items:center'}, el('label', {for:'phone-topic', class:'rsub'}, 'Team channel'), topicIn, copyBtn, testBtn),
       S.errors.topic ? el('p', {class:'err', role:'alert', text:S.errors.topic}) : null,
       el('p', {class:'footnote', style:'margin-top:12px'}, 'Your phone is alerted when a logged reading turns an indicator amber or red, when a clue is logged (marked urgent if it makes a risk critical), as soon as the dashboard is opened or reloaded, and then with a reminder of open alerts every ', every, ' until the alerts are acknowledged or notifications are stopped. The free ntfy.sh service allows only a limited number of alerts a day, so use 10 s for the demo and a slower setting the rest of the time. Everyone who subscribes to the channel gets the alerts, so share it only with the team.'),
       phoneState.at ? el('p', {class:'footnote', style:'margin-top:6px;color:' + (phoneState.ok ? 'var(--low)' : 'var(--crit)'), text:(phoneState.ok ? 'Last phone alert sent ' : phoneState.limited ? 'Paused by ntfy.sh rate limit, ' : 'Last phone alert failed ') + ago(new Date(phoneState.at).toISOString()) + '.'}) : null));
-  return [phonePanel, teamPhonePanel(), teamDbPanel(), el('section', {class:'panel'}, el('div', {class:'panel-h'}, el('h2', {text:'How the dashboard works'})),
+  return [phonePanel, teamPhonePanel(), governancePanel(), teamDbPanel(), el('section', {class:'panel'}, el('div', {class:'panel-h'}, el('h2', {text:'How the dashboard works'})),
     el('div', {class:'panel-b prose'},
       el('h3', {text:'1. Scoring'}),
       el('p', {text:'Each risk is scored Probability (1 rare – 4 almost certain) × Impact (1 minor – 4 critical), from 1 to 16. Critical is 12–16, high 8–11, moderate 5–7 and low 1–4. “Before” is the team’s assessment from the report, “After plan” is the residual score once every linked action is done, and “Now” moves between the two as actions are marked in progress (half) or done.'}),
@@ -1561,7 +1587,7 @@ function toast(tier, title, msg, rid, key){
     el('div', {style:'flex:1;min-width:0'}, el('div', {class:'tt', text:title}), el('div', {class:'tm', text:msg}), rid && riskById[rid] ? el('div', {class:'tw', text:whoLine(rid)}) : null,
       el('div', {style:'display:flex;gap:8px;flex-wrap:wrap;margin-top:8px'},
         rid ? el('button', {class:'btn', type:'button', onclick:() => { openRisk(rid); }}, 'Open risk') : null,
-        persistent && rid ? el('button', {class:'btn danger', type:'button', onclick:() => { containRisk([rid], 'dashboard'); }}, 'Contain') : null,
+        persistent && rid ? el('button', {class:'btn danger', type:'button', onclick:() => { containRisk([rid], 'dashboard'); }}, containLabel(rid)) : null,
         persistent ? el('button', {class:'btn', type:'button', onclick:() => { const k = KRIS.find(x => x.id === key); if (k) acknowledge(k); t.remove(); }}, 'Acknowledge (5 min)') : null)),
     el('button', {class:'x', type:'button', 'aria-label':'Hide until the next reminder', title:'Hide until the next reminder', onclick:() => t.remove()}, '×'));
   box.prepend(t);
@@ -1729,7 +1755,7 @@ function onDbError(e){ if (e && (e.code === 'revoked' || e.code === 'not_granted
 /* Local data store: same interface as before, saved in this browser and synced live between open tabs. */
 const STORE_KEY = 'novatech-riskwatch-data-v1';
 const SEED = {"clues/dossier-01": {"text": "Infrastructure strongly dependent on the cloud.", "dept": "Dossier", "risks": ["R1", "R2"], "effect": "none", "at": "2026-10-02T09:00:00.000Z"}, "clues/dossier-02": {"text": "40% of employees can telework.", "dept": "Dossier", "risks": ["R2", "R13"], "effect": "none", "at": "2026-10-02T09:01:00.000Z"}, "clues/dossier-03": {"text": "25 new employees hired in two years (85 staff in total).", "dept": "Dossier", "risks": ["R8", "R15", "R10"], "effect": "none", "at": "2026-10-02T09:02:00.000Z"}, "clues/dossier-04": {"text": "Revenue up 35% in two years, to €12M.", "dept": "Dossier", "risks": ["R7", "R11"], "effect": "none", "at": "2026-10-02T09:03:00.000Z"}, "clues/dossier-05": {"text": "Several subcontractors take part in client projects.", "dept": "Dossier", "risks": ["R4", "R5"], "effect": "none", "at": "2026-10-02T09:04:00.000Z"}, "clues/dossier-06": {"text": "About 70% of revenue comes from recurring contracts; important new clients signed.", "dept": "Dossier", "risks": ["R6"], "effect": "none", "at": "2026-10-02T09:05:00.000Z"}, "clues/dossier-07": {"text": "Several new digital tools deployed.", "dept": "Dossier", "risks": ["R13", "R2"], "effect": "none", "at": "2026-10-02T09:06:00.000Z"}, "clues/dossier-08": {"text": "The company is starting to work with European clients.", "dept": "Dossier", "risks": ["R3", "R12"], "effect": "none", "at": "2026-10-02T09:07:00.000Z"}, "clues/dossier-09": {"text": "Three agencies: Nantes, Angers and Rennes; 230 active clients.", "dept": "Dossier", "risks": ["R14"], "effect": "none", "at": "2026-10-02T09:08:00.000Z"}, "clues/dossier-10": {"text": "The Direction notes a growing number of small incidents and unusual signals.", "dept": "Dossier", "risks": ["R9"], "effect": "none", "at": "2026-10-02T09:09:00.000Z"}, "kri/K20": {"readings": [{"v": 40, "at": "2026-10-02T09:00:00.000Z", "src": "dossier"}]}, "kri/K21": {"readings": [{"v": 29.4, "at": "2026-10-02T09:00:00.000Z", "src": "dossier"}]}, "kri/K22": {"readings": [{"v": 35, "at": "2026-10-02T09:00:00.000Z", "src": "dossier"}]}};
-const PATH_OK = /^(kri|actions|acks|reassess|clues|config|response|log)\/[A-Za-z0-9_.-]{1,80}$/;
+const PATH_OK = /^(kri|actions|acks|reassess|clues|config|response|log|approval)\/[A-Za-z0-9_.-]{1,80}$/;
 const clone = o => JSON.parse(JSON.stringify(o));
 function validStore(o){ return o && typeof o === 'object' && o.docs && typeof o.docs === 'object' && !Array.isArray(o.docs) && Object.entries(o.docs).every(([p, v]) => PATH_OK.test(p) && v && typeof v === 'object' && !Array.isArray(v)); }
 function readStore(){ try { const o = JSON.parse(localStorage.getItem(STORE_KEY) || 'null'); return validStore(o) ? o : null; } catch (e) { return null; } }
@@ -1787,6 +1813,8 @@ async function start(){
   localDb.collection('clues').onSnapshot(onClues);
   localDb.doc('config/assumptions').onSnapshot(d => { S.assumptions = d.exists ? d.data() : null; schedule(); });
   localDb.collection('log').onSnapshot(onLog);
+  localDb.collection('approval').onSnapshot(collect('approval', 'approvals'));
+  localDb.doc('config/governance').onSnapshot(d => { S.gov = d.exists ? d.data() : null; schedule(); });
   render();
   teamConnect();
 }
@@ -2503,7 +2531,7 @@ async function teamPoll(force){
   if (!teamDbActive() || TDB.busy) return;
   if (TDB.outbox.length) { teamFlush(); return; }
   if (!force && document.hidden) return;
-  TDB.busy = true;
+  TDB.busy = true; const st0 = TDB.state + TDB.err; let changed = false;
   try {
     const j = await tdbFetch('GET', TDB.v < 0 ? '' : '?since=' + TDB.v);
     if (!validRemote(j)) throw new Error('Unexpected answer from the server');
@@ -2514,13 +2542,13 @@ async function teamPoll(force){
       for (const [p, d] of Object.entries(j.docs)) if (PATH_OK.test(p) && d && typeof d === 'object' && !Array.isArray(d)) docs[p] = d;
       TDB.outbox.forEach(o => applyOp(docs, o));          /* changes typed while the request was in flight */
       TDB.v = j.v; TDB.docs = Object.keys(docs).length;
-      store = {docs}; persist(); fire();
+      store = {docs}; persist(); fire(); changed = true;
     } else TDB.v = j.v;
   } catch (e) {
     TDB.fails++;
     if (e.status === 503) { TDB.state = 'unconfigured'; TDB.err = ''; }
     else { TDB.state = 'error'; TDB.err = e.message === 'The user aborted a request.' || /abort/i.test(e.message) ? 'No answer from the server' : e.message; }
-  } finally { TDB.busy = false; schedule(); }
+  } finally { TDB.busy = false; if (changed || st0 !== TDB.state + TDB.err) schedule(); }   /* no re-render when nothing changed */
 }
 /* First contact: adopt the shared records, or fill an empty database with this dashboard's records. */
 async function teamConnect(){
@@ -2703,9 +2731,10 @@ function alertSince(rid){
   }
   return since;
 }
-function impactOf(rid, atMs = Date.now()){
+/* since0: when no indicator started the clock (e.g. a dossier fact), the clock starts when containment was requested */
+function impactOf(rid, atMs = Date.now(), since0 = null){
   const r = riskById[rid], pf = IMPACT_PROFILE[rid], lvl = inh(r).i, worst = assump().imp[lvl - 1];
-  const since = alertSince(rid), mins = since ? Math.max(0, (atMs - Date.parse(since)) / 60000) : 0;
+  const since = alertSince(rid) || since0, mins = since ? Math.max(0, (atMs - Date.parse(since)) / 60000) : 0;
   const share = Math.min(.95, pf.onset + (1 - pf.onset) * (mins / 60) / pf.hours);
   const done = Math.round(worst * share / 100) * 100;
   return {worst, done, avoided:worst - done, perHour:Math.round(worst * (1 - pf.onset) / pf.hours), since, mins:Math.round(mins), lvl, hours:pf.hours};
@@ -2755,8 +2784,11 @@ function showImpactSheet(ids){
   const card = el('div', {class:'imp-card', role:'dialog', 'aria-modal':'true', 'aria-labelledby':'imp-h', 'data-notr':''},
     el('p', {class:'imp-kick'}, el('span', {class:'imp-dot'}), L('Incident contained', 'Incident contenu')),
     el('h2', {id:'imp-h', text:one ? `${r0.id} ${L(r0.name, trFR(r0.name))}` : L(`${ids.length} incidents contained`, `${ids.length} incidents contenus`)}),
-    el('p', {class:'imp-sub', text:[d0.by ? L(`By ${d0.by}`, `Par ${d0.by}`) : null, d0.via === 'phone' ? L('from a phone', 'depuis un téléphone') : null,
+    el('p', {class:'imp-sub', text:[d0.by ? L(`By ${d0.by}`, `Par ${d0.by}`) : null, d0.via === 'phone' && !(d0.approval && d0.approval.approvedBy) ? L('from a phone', 'depuis un téléphone') : null,
       one ? (docs[0][2].since ? L(`${durTxt(docs[0][2].mins)} after the alert`, `${durTxt(docs[0][2].mins)} après l’alerte`) : L('at the first warning', 'dès le premier signal')) : null].filter(Boolean).join(' · ')}),
+    d0.approval && d0.approval.approvedBy ? el('p', {class:'imp-appr'}, el('span', {class:'appr-badge', text:L('CEO approved', 'Validé par le PDG')}),
+      L(`${d0.approval.approvedBy} approved ${durTxt(d0.approval.waitMin || 0)} after ${d0.approval.requestedBy || 'the team'} asked`, `${d0.approval.approvedBy} a validé ${durTxt(d0.approval.waitMin || 0)} après la demande de ${d0.approval.requestedBy || 'l’équipe'}`),
+      Number.isFinite(d0.approval.waitCost) ? [' · ', L('waiting cost ≈ ', 'coût de l’attente ≈ '), el('b', {text:fmtEUR(d0.approval.waitCost)})] : null) : null,
     el('div', {class:'imp-tiles'},
       tile('bad', L('Damage already done', 'Dommages déjà subis'), D, L(`${Math.round(D / W * 100)}% of the worst case`, `${Math.round(D / W * 100)} % du pire scénario`)),
       tile('good', L('Loss avoided by containing', 'Perte évitée grâce au confinement'), A, L('secured as the response steps are done', 'sécurisée au fil des étapes de réponse')),
@@ -2859,7 +2891,8 @@ function routeToResponsible(ids, title, message, priority){
 
 let containing = false;
 /* Contain: run the playbook. `lead` = this dashboard sends the notifications (the one whose user started it). */
-async function containRisk(rids, via, by, lead = true){
+/* Runs the playbook. Called directly when no approval is needed, or once the CEO has approved (approval = who/when). */
+async function runContainment(rids, via, by, lead = true, approval = null){
   if (containing || S.mode !== 'live') return false;
   const ids = rids.filter(id => riskById[id]); if (!ids.length) return false;
   containing = true; S.quietLog = !lead; if (lead) expectChange({cause:'contain'});
@@ -2868,7 +2901,8 @@ async function containRisk(rids, via, by, lead = true){
     if (via === 'dashboard') postCmd(`CONTAIN ${ids.length > 1 ? 'ALL' : ids[0]}${who ? ' by ' + who : ''}`);
     for (const rid of ids) {
       const r = riskById[rid], play = playOf(rid);
-      const doc = {at, by:who, via, impact:impactOf(rid, Date.parse(at)), owner:ownerOf(rid), steps:play.map(x => x[0]), owners:play.map(x => x[1]), people:play.map(x => personOf(x[1], rid)), done:play.map(() => null)};
+      const imp = impactOf(rid, Date.parse(at), approval && approval.requestedAt);
+      const doc = {at, by:who, via, impact:imp, approval:approval || undefined, owner:ownerOf(rid), steps:play.map(x => x[0]), owners:play.map(x => x[1]), people:play.map(x => personOf(x[1], rid)), done:play.map(() => null)};
       await guarded('response/' + rid, () => S.db.doc('response/' + rid).set(doc));
       for (const aid of r.actions) if (actStatus(aid) === 'not') await setStatus(aid, 'prog');
       await guarded('clue', async () => { const ref = await S.db.collection('clues').add({text:`Containment of ${rid} ${r.name}${via === 'phone' ? ' started from a phone' : ''}: ${play.map(x => `${x[0]} (${x[1]})`).join('; ')}.`, dept:r.cat.startsWith('Cyber') || r.cat.includes('IT') ? 'IT department' : 'Direction', risks:[rid], effect:'none', at, by:who}); S.localIds.add(ref.id); });
@@ -2886,7 +2920,7 @@ async function containRisk(rids, via, by, lead = true){
     }
     const names = ids.map(id => `${id} ${riskById[id].name}`);
     toast('info', tr(via === 'phone' ? `Contained from a phone: ${names.join(', ')}` : `Contained: ${names.join(', ')}`), tr(`${ids.reduce((n, id) => n + playOf(id).length, 0)} response steps assigned; linked actions started.`), ids[0]);
-    if (lead) phonePush(`Contained: ${names.join(', ')}`, ids.map(id => [whoLine(id), (m => L(`Damage so far ≈ ${fmtEUR(m.done)} · loss avoided ≈ ${fmtEUR(m.avoided)} (worst case ${fmtEUR(m.worst)})`, `Dommages ≈ ${fmtEUR(m.done)} · perte évitée ≈ ${fmtEUR(m.avoided)} (pire scénario ${fmtEUR(m.worst)})`))(impactOf(id, Date.parse(at))), ...playOf(id).map(x => `→ ${x[0]} (${x[1]}: ${personOf(x[1], id)})`)].join('\n')).join('\n\n') + (who ? `\nBy ${who}${via === 'phone' ? ' (phone)' : ''}` : ''), 3, ['white_check_mark']);
+    if (lead) phonePush(`Contained: ${names.join(', ')}`, ids.map(id => [whoLine(id), (m => L(`Damage so far ≈ ${fmtEUR(m.done)} · loss avoided ≈ ${fmtEUR(m.avoided)} (worst case ${fmtEUR(m.worst)})`, `Dommages ≈ ${fmtEUR(m.done)} · perte évitée ≈ ${fmtEUR(m.avoided)} (pire scénario ${fmtEUR(m.worst)})`))(impactOf(id, Date.parse(at), approval && approval.requestedAt)), approval && approval.approvedBy ? L(`Approved by ${approval.approvedBy} (CEO)`, `Validé par ${approval.approvedBy} (PDG)`) : null, ...playOf(id).map(x => `→ ${x[0]} (${x[1]}: ${personOf(x[1], id)})`)].filter(Boolean).join('\n')).join('\n\n') + (who ? `\nBy ${who}${via === 'phone' ? ' (phone)' : ''}` : ''), 3, ['white_check_mark']);
     schedule();
     return true;
   } finally { containing = false; setTimeout(() => { S.quietLog = false; }, 500); }
@@ -2903,7 +2937,7 @@ async function markStepDone(rid, k, by, via){
   if (closed && (S.myId === d.by || !d.by || via === 'dashboard')) phonePush(`Incident closed: ${rid} ${riskById[rid].name}`, `All ${d.steps.length} response steps are done.\n` + d.steps.map((s, i) => `✓ ${s} (${done[i].by || '?'})`).join('\n'), 3, ['tada']);
   schedule();
 }
-async function reopenRisk(rid){ await guarded('response/' + rid, () => S.db.doc('response/' + rid).delete()); if (DEVICE_RISKS.includes(rid)) postCmd(`RELEASE ALL ${rid}`); schedule(); }
+async function reopenRisk(rid){ await guarded('response/' + rid, () => S.db.doc('response/' + rid).delete()); if (approvalOf(rid)) await guarded('approval/' + rid, () => S.db.doc('approval/' + rid).delete()); if (DEVICE_RISKS.includes(rid)) postCmd(`RELEASE ALL ${rid}`); schedule(); }
 
 /* Commands from phones and other dashboards */
 function runCommand(id, text){
@@ -2911,6 +2945,7 @@ function runCommand(id, text){
   const t = String(text || '').trim(); let m;
   if ((m = CMD_CONTAIN.exec(t))) { const by = m[2], lead = !by || by === S.myId; if (m[1] === 'ALL') containAllOpen('phone', by, lead); else containRisk([m[1]], 'phone', by, lead); }
   else if ((m = CMD_DONE.exec(t))) markStepDone(m[1], Number(m[2]) - 1, m[3], 'phone');
+  else if ((m = CMD_DECIDE.exec(t))) decideCommand(m[1], m[2], m[3]);
 }
 let cmdSource = null, cmdFor = '';
 function listenForCommands(){
@@ -2970,7 +3005,7 @@ function responseBlock(r){
     d ? stepList(r.id, d) : el('ol', {class:'play'}, ...playOf(r.id).map(([st, ow]) => el('li', null, el('span', {class:'resp-step', text:st}), el('span', {class:'owner-chip'}, el('span', {text:ow}), ' · ', el('b', {text:personOf(ow, r.id)}))))),
     el('div', {style:'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px'},
       d ? el('span', {class:'pill ok'}, el('i'), `Contained ${ago(d.at)}${d.via === 'phone' ? ' from a phone' : ''}`) : null,
-      el('button', {class:'btn danger', type:'button', disabled:S.mode !== 'live', onclick:() => containRisk([r.id], 'dashboard')}, d ? 'Run playbook again' : open ? 'Contain now' : 'Run playbook'),
+      el('button', {class:'btn danger', type:'button', disabled:S.mode !== 'live' || !!pendingOf(r.id), onclick:() => containRisk([r.id], 'dashboard')}, pendingOf(r.id) ? containLabel(r.id) : d ? 'Run playbook again' : needsApproval(r.id) && S.myId !== ceoName() ? containLabel(r.id) : open ? 'Contain now' : 'Run playbook'),
       d ? el('button', {class:'btn', type:'button', onclick:() => reopenRisk(r.id)}, 'Reopen') : null));
 }
 /* Phone set-up for the whole team: one personal channel per member. */
@@ -2990,6 +3025,139 @@ function teamPhonePanel(){
       el('h3', {text:'Demo: the infected laptop shuts down'}),
       el('p', null, 'Open ', el('a', {href:SITE_URL + '#device=LAPTOP-07', target:'_blank', rel:'noopener'}, 'the demo laptop page'), ' on a second computer and click “Start”. When someone contains a cyberattack (R2), a supplier breach (R5) or an insider threat (R16), that computer turns red, counts down and shuts its screen off. “Reopen” brings it back.'),
       el('p', null, 'To really lock a Windows computer as well, download the ', el('a', {href:'https://github.com/AR-base/novatech-risk-watch/tree/main/demo', target:'_blank', rel:'noopener'}, 'device agent'), ' (device-agent.bat and device-agent.ps1, same folder) and double-click device-agent.bat. It locks the session when the computer is isolated; started with -Shutdown it shuts the computer down after 60 seconds (cancel with “shutdown /a”).')));
+}
+
+/* ───────────── CEO approval before containment ─────────────
+   Containing a risk can stop services, lock accounts or shut laptops down, so the CEO decides. "Contain" from a
+   dashboard or a phone becomes a request: the CEO's phone gets Approve / Reject buttons with what is at stake, every
+   dashboard shows the request with a live "cost of waiting" counter, and the playbook only runs once the CEO approves.
+   The policy (always, above a cost, never) and who plays the CEO are set in Phone alerts & help. */
+S.approvals = S.approvals || {};
+S.gov = S.gov || null;
+const GOV_DEFAULT = {ceo:'Krishna', policy:0};          /* policy: 0 = always ask, -1 = never ask, > 0 = ask when the worst case reaches this amount (€) */
+const gov = () => { const g = S.gov || {}; return {ceo:TEAM.includes(g.ceo) ? g.ceo : GOV_DEFAULT.ceo, policy:Number.isFinite(g.policy) ? g.policy : GOV_DEFAULT.policy}; };
+const ceoName = () => gov().ceo;
+function needsApproval(rid){ const p = gov().policy; return p === 0 || (p > 0 && impactOf(rid).worst >= p); }
+function approvalOf(rid){ const a = S.approvals && S.approvals[rid]; return a && typeof a.at === 'string' && !isNaN(Date.parse(a.at)) && ['pending', 'rejected'].includes(a.status) ? a : null; }
+const pendingOf = rid => { const a = approvalOf(rid); return a && a.status === 'pending' ? a : null; };
+function containLabel(rid){
+  if (pendingOf(rid)) return L('Waiting for the CEO', 'En attente du PDG');
+  return needsApproval(rid) && S.myId !== ceoName() ? L('Ask the CEO to contain', 'Demander au PDG') : L('Contain', 'Contenir');
+}
+const CMD_DECIDE = new RegExp(`^(APPROVE|REJECT|APPROVED|REJECTED) (${RID.slice(1, -1)}|ALL)${WHO}$`);
+
+/* Entry point for every Contain button and phone command */
+async function containRisk(rids, via, by, lead = true){
+  if (S.mode !== 'live') return false;
+  const ids = [...new Set(rids)].filter(id => riskById[id]); if (!ids.length) return false;
+  const who = TEAM.includes(by) ? by : (S.myId || null);
+  const ask = ids.filter(id => needsApproval(id) && who !== ceoName());
+  const now = ids.filter(id => !ask.includes(id));
+  if (ask.length) await requestApproval(ask, via, who, lead);
+  if (now.length) await runContainment(now, via, by, lead, who === ceoName() && needsApproval(now[0]) ? {requestedBy:who, requestedAt:new Date().toISOString(), approvedBy:who, approvedAt:new Date().toISOString(), waitMin:0, waitCost:0, self:true} : null);
+  return true;
+}
+async function requestApproval(ids, via, who, lead){
+  const fresh = ids.filter(id => !pendingOf(id));   /* a request already known (shared database) is never overwritten */ if (!fresh.length) { if (lead) toast('info', L('Already waiting for the CEO', 'Déjà en attente du PDG'), ids.join(', ')); return; }
+  const at = new Date().toISOString();
+  if (via === 'dashboard') postCmd(`CONTAIN ${fresh.length > 1 ? 'ALL' : fresh[0]}${who ? ' by ' + who : ''}`);
+  for (const rid of fresh) {
+    const m = impactOf(rid, Date.parse(at), at);
+    await guarded('approval/' + rid, () => S.db.doc('approval/' + rid).set({status:'pending', at, requestedBy:who, via, done0:m.done, perHour:m.perHour, worst:m.worst}));
+  }
+  toast('info', L(`Sent to ${ceoName()} (CEO) for approval`, `Envoyé à ${ceoName()} (PDG) pour validation`), fresh.map(id => `${id} ${riskById[id].name}`).join(', '), fresh[0]);
+  if (lead) notifyCeo(fresh, who);
+}
+const ceoNotified = {};
+function notifyCeo(ids, who, again){
+  const ceo = ceoName(), key = ids.join(',');
+  if (again && Date.now() - (ceoNotified[key] || 0) < 20000) { toast('info', L('Reminder already sent', 'Rappel déjà envoyé'), L('Wait a few seconds before reminding again.', 'Attendez quelques secondes avant de relancer.')); return; }
+  ceoNotified[key] = Date.now();
+  const target = ids.length > 1 ? 'ALL' : ids[0];
+  const btn = (label, verb) => ({action:'http', label, url:'https://ntfy.sh/', method:'POST', clear:true, body:JSON.stringify({topic:cmdTopic(), message:`${verb} ${target} by ${ceo}`})});
+  const lines = ids.map(id => { const m = impactOf(id, Date.now(), (pendingOf(id) || {}).at); return L(`${id} ${riskById[id].name}: damage so far ≈ ${fmtEUR(m.done)}, worst case ${fmtEUR(m.worst)}, each hour of waiting ≈ ${fmtEUR(m.perHour)}.`, `${id} ${trFR(riskById[id].name)} : dommages ≈ ${fmtEUR(m.done)}, pire scénario ${fmtEUR(m.worst)}, chaque heure d’attente ≈ ${fmtEUR(m.perHour)}.`); });
+  const title = (again ? L('Reminder: ', 'Rappel : ') : '') + L(`CEO approval needed: contain ${ids.join(', ')}`, `Validation du PDG requise : contenir ${ids.join(', ')}`);
+  const msg = [L(`${who || 'The team'} asks to run the response playbook.`, `${who || 'L’équipe'} demande à lancer le plan de réponse.`), ...lines, L('Approve to start containment now, or reject to accept the risk for the moment.', 'Validez pour lancer le confinement maintenant, ou refusez pour accepter le risque pour l’instant.')].join('\n');
+  phonePush(title, msg, 5, ['briefcase', 'warning'], true, [btn(L('Approve', 'Valider'), 'APPROVE'), btn(L('Reject', 'Refuser'), 'REJECT'), {action:'view', label:L('Open dashboard', 'Ouvrir le tableau'), url:SITE_URL}], personTopic(ceo));
+  if (!again) phonePush(L(`Waiting for ${ceo} (CEO): contain ${ids.join(', ')}`, `En attente de ${ceo} (PDG) : contenir ${ids.join(', ')}`), msg.split('\n').slice(0, 1 + ids.length).join('\n'), 3, ['hourglass'], true);
+}
+/* The CEO decides (dashboard button, or phone button through the command channel) */
+async function decide(rid, ok, by, via, lead){
+  const a = pendingOf(rid); if (!a) return false;
+  const at = new Date().toISOString(), waitMin = Math.max(0, (Date.parse(at) - Date.parse(a.at)) / 60000);
+  if (via === 'dashboard') postCmd(`${ok ? 'APPROVED' : 'REJECTED'} ${rid} by ${by}`);
+  if (ok) {
+    const now = impactOf(rid, Date.parse(at), a.at);
+    const approval = {requestedBy:a.requestedBy || null, requestedAt:a.at, approvedBy:by, approvedAt:at, waitMin:Math.round(waitMin * 10) / 10, waitCost:Math.max(0, now.done - (Number(a.done0) || 0))};
+    await guarded('approval/' + rid, () => S.db.doc('approval/' + rid).delete());
+    await runContainment([rid], a.via === 'dashboard' ? 'dashboard-approved' : 'phone', a.requestedBy, lead, approval);
+  } else {
+    await guarded('approval/' + rid, () => S.db.doc('approval/' + rid).set({...a, status:'rejected', decidedBy:by, decidedAt:at}));
+    toast('info', L(`${by} (CEO) rejected containment of ${rid}`, `${by} (PDG) a refusé le confinement de ${rid}`), L('The risk is accepted for now; the alert stays open and is watched.', 'Le risque est accepté pour l’instant ; l’alerte reste ouverte et surveillée.'), rid);
+    if (lead) {
+      const t = L(`Rejected by ${by} (CEO): contain ${rid} ${riskById[rid].name}`, `Refusé par ${by} (PDG) : contenir ${rid} ${trFR(riskById[rid].name)}`), msg = L('The risk is accepted for now. The alert stays open and is watched.', 'Le risque est accepté pour l’instant. L’alerte reste ouverte et surveillée.');
+      phonePush(t, msg, 3, ['no_entry'], true);
+      if (a.requestedBy && a.requestedBy !== by) phonePush(t, msg, 4, ['no_entry'], true, undefined, personTopic(a.requestedBy));
+    }
+  }
+  schedule(); return true;
+}
+function decideCommand(verb, target, by){
+  const ok = verb.startsWith('APPROVE'), mirror = verb.endsWith('D');           /* APPROVED / REJECTED: another dashboard already acted */
+  if (!mirror && by && by !== ceoName()) { toast('info', L('Ignored', 'Ignoré'), L(`Only ${ceoName()} (CEO) can decide.`, `Seul ${ceoName()} (PDG) peut décider.`)); return; }
+  const ids = target === 'ALL' ? Object.keys(S.approvals || {}).filter(pendingOf) : [target];
+  /* a phone decision is carried out by the dashboard of the person who asked (only one dashboard sends the phone tasks) */
+  ids.forEach(rid => { const a = pendingOf(rid); if (a) decide(rid, ok, by || ceoName(), 'phone', !mirror && (a.requestedBy ? a.requestedBy === S.myId : !!S.myId && S.myId === ceoName())); });
+}
+async function dismissApproval(rid){ await guarded('approval/' + rid, () => S.db.doc('approval/' + rid).delete()); schedule(); }
+
+/* Overview panel: requests waiting for the CEO, with a live cost-of-waiting counter; and recent rejections */
+function approvalPanel(){
+  const ids = Object.keys(S.approvals || {}).filter(id => riskById[id] && approvalOf(id)).sort((a, b) => Date.parse(approvalOf(b).at) - Date.parse(approvalOf(a).at));
+  if (!ids.length) return null;
+  const ceo = ceoName(), isCeo = S.myId === ceo;
+  return el('section', {class:'panel appr', 'aria-labelledby':'appr-h', 'data-notr':''},
+    el('div', {class:'panel-h'}, el('div', null, el('h2', {id:'appr-h', text:L('Waiting for the CEO', 'En attente du PDG')}),
+      el('p', {class:'hint', text:isCeo ? L('You are the CEO: approve to start containment now, or reject to accept the risk for the moment.', 'Vous êtes le PDG : validez pour lancer le confinement, ou refusez pour accepter le risque pour l’instant.')
+        : L(`Containment runs only after ${ceo} (CEO) approves, on the phone or here. The cost keeps growing while you wait.`, `Le confinement ne démarre qu’après la validation de ${ceo} (PDG), sur son téléphone ou ici. Le coût augmente pendant l’attente.`)}))),
+    el('ul', {class:'appr-list'}, ...ids.map(id => {
+      const a = approvalOf(id), r = riskById[id], pend = a.status === 'pending';
+      return el('li', {class:pend ? 'pending' : 'rejected'},
+        el('div', {class:'appr-h'}, el('span', {class:'appr-ic', 'aria-hidden':'true', text:pend ? '⏳' : '✕'}), el('b', {text:`${id} ${L(r.name, trFR(r.name))}`}),
+          el('span', {class:'pill ' + (pend ? 'warning' : 'none')}, el('i'), pend ? L('Waiting for approval', 'En attente de validation') : L(`Rejected by ${a.decidedBy || ceo}`, `Refusé par ${a.decidedBy || ceo}`)),
+          el('span', {class:'muted', text:L(`asked by ${a.requestedBy || 'the team'}`, `demandé par ${a.requestedBy || 'l’équipe'}`)})),
+        pend ? el('div', {class:'appr-meter'},
+          el('div', null, el('span', {text:L('Waiting', 'Attente')}), el('b', {'data-wait-since':a.at, text:waitTxt(a.at)})),
+          el('div', null, el('span', {text:L('Cost of waiting so far', 'Coût de l’attente')}), el('b', {class:'bad', 'data-wait-since':a.at, 'data-per-hour':String(Number(a.perHour) || 0), text:waitTxt(a.at, Number(a.perHour) || 0)})),
+          el('div', null, el('span', {text:L('Worst case', 'Pire scénario')}), el('b', {text:fmtEUR(Number(a.worst) || 0)})))
+          : el('p', {class:'muted', style:'margin:6px 0 0', text:L('The CEO accepts the risk for now. The alert stays open and is watched.', 'Le PDG accepte le risque pour l’instant. L’alerte reste ouverte et surveillée.')}),
+        el('div', {class:'appr-btns'},
+          pend && isCeo ? el('button', {class:'btn primary', type:'button', onclick:() => decide(id, true, ceo, 'dashboard', true)}, L('Approve and contain', 'Valider et contenir')) : null,
+          pend && isCeo ? el('button', {class:'btn', type:'button', onclick:() => decide(id, false, ceo, 'dashboard', true)}, L('Reject', 'Refuser')) : null,
+          pend && !isCeo ? el('button', {class:'btn', type:'button', onclick:() => notifyCeo([id], a.requestedBy || S.myId, true)}, L(`Remind ${ceo}`, `Relancer ${ceo}`)) : null,
+          pend && !isCeo ? el('span', {class:'muted', text:L(`Only ${ceo} can decide. To play the CEO, choose “${ceo}” in “You are”.`, `Seul ${ceo} peut décider. Pour jouer le PDG, choisissez « ${ceo} » dans « Vous êtes ».`)}) : null,
+          pend && a.requestedBy === S.myId && !isCeo ? el('button', {class:'btn', type:'button', onclick:() => dismissApproval(id)}, L('Cancel request', 'Annuler la demande')) : null,
+          !pend ? el('button', {class:'btn', type:'button', onclick:() => dismissApproval(id)}, L('Dismiss', 'Masquer')) : null));
+    })));
+}
+const waitTxt = (since, perHour) => { const s = Math.max(0, (Date.now() - Date.parse(since)) / 1000); return perHour != null ? fmtEUR(Math.round(Number(perHour) * s / 3600)) : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`; };
+setInterval(() => { document.querySelectorAll('[data-wait-since]').forEach(n => { n.textContent = waitTxt(n.dataset.waitSince, n.dataset.perHour); }); }, 1000);
+
+/* Settings: who plays the CEO, and when the CEO must approve */
+function governancePanel(){
+  const g = gov();
+  const save = next => guarded('config/governance', () => S.db.doc('config/governance').set({...g, ...next, at:new Date().toISOString(), by:S.myId || null}));
+  const pol = el('select', {id:'gov-policy', 'aria-label':L('When the CEO must approve', 'Quand le PDG doit valider'), onchange:e => save({policy:Number(e.target.value)})},
+    ...[[0, L('Always, for every containment', 'Toujours, pour chaque confinement')], [300000, L('Only when the worst case is €300k or more', 'Seulement si le pire scénario atteint 300 k€')], [1200000, L('Only when the worst case is €1.2M or more', 'Seulement si le pire scénario atteint 1,2 M€')], [-1, L('Never (the team contains directly)', 'Jamais (l’équipe contient directement)')]]
+      .map(([v, t]) => el('option', {value:String(v), selected:g.policy === v}, t)));
+  const ceoSel = el('select', {id:'gov-ceo', 'aria-label':L('Who plays the CEO', 'Qui joue le PDG'), onchange:e => save({ceo:e.target.value})}, ...TEAM.map(n => el('option', {value:n, selected:g.ceo === n}, n)));
+  return el('section', {class:'panel', id:'gov', 'aria-labelledby':'gov-h', 'data-notr':''},
+    el('div', {class:'panel-h'}, el('div', null, el('h2', {id:'gov-h', text:L('CEO approval', 'Validation du PDG')}),
+      el('p', {class:'hint', text:L('Containment can stop services, lock accounts and shut laptops down, so the CEO decides. A Contain button becomes a request; the CEO gets Approve and Reject buttons on the phone.', 'Le confinement peut arrêter des services, bloquer des comptes et éteindre des ordinateurs : c’est le PDG qui décide. Le bouton Contenir devient une demande ; le PDG reçoit Valider et Refuser sur son téléphone.')}))),
+    el('div', {class:'gov-grid'},
+      el('label', {for:'gov-ceo'}, el('span', {text:L('Who plays the CEO', 'Qui joue le PDG')}), ceoSel),
+      el('label', {for:'gov-policy'}, el('span', {text:L('When the CEO must approve', 'Quand le PDG doit valider')}), pol)),
+    el('p', {class:'hint', style:'margin:0 20px 18px', text:L(`${g.ceo} receives approval requests on the channel ${personTopic(g.ceo)}. When ${g.ceo} presses Contain, it starts at once (the CEO approves their own request).`, `${g.ceo} reçoit les demandes sur le canal ${personTopic(g.ceo)}. Quand ${g.ceo} appuie sur Contenir, cela démarre aussitôt (le PDG valide sa propre demande).`)}));
 }
 
 /* ───────────── Demo laptop (#device=LAPTOP-07) ─────────────

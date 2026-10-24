@@ -5,7 +5,7 @@
 //   <prefix>:v      int    version, +1 on every write; dashboards poll it to know when to reload
 //   <prefix>:audit  list   last 300 writes: who, when, which paths (append-only history for the teacher)
 
-export const PATH_OK = /^(kri|actions|acks|reassess|clues|config|response|log)\/[A-Za-z0-9_.-]{1,80}$/;
+export const PATH_OK = /^(kri|actions|acks|reassess|clues|config|response|log|approval)\/[A-Za-z0-9_.-]{1,80}$/;
 const MAX_DOC = 16000;           // bytes per record
 const MAX_OPS = 25;              // records per write
 const MAX_DOCS = 3000;           // records in the whole database
