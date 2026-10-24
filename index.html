@@ -2521,7 +2521,11 @@ async function teamFlush(){
     await tdbFetch('POST', '', {by:S.myId || null, ops:batch});
     TDB.outbox = TDB.outbox.filter(x => !batch.includes(x)); TDB.fails = 0;
     if (TDB.state !== 'on') { TDB.state = 'on'; TDB.err = ''; }
-  } catch (e) { TDB.fails++; TDB.state = 'error'; TDB.err = e.message; }
+  } catch (e) {
+    /* a change the server refuses (400/413) will never be accepted: drop it so it cannot block the queue; it stays on this computer */
+    if (e.status === 400 || e.status === 413) { TDB.outbox = TDB.outbox.filter(x => !batch.includes(x)); TDB.err = 'The server refused a change: ' + e.message; }
+    else { TDB.fails++; TDB.state = 'error'; TDB.err = e.message; }
+  }
   finally { TDB.busy = false; schedule(); }
   if (TDB.outbox.length && TDB.state === 'on') setTimeout(teamFlush, 50);
   else if (!TDB.outbox.length) teamPoll(true);
