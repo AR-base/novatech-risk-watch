@@ -12,11 +12,22 @@ const MAX_DOCS = 3000;           // records in the whole database
 const MAX_REPLACE = 900000;      // bytes for a full replace (reset / backup import)
 const BY_OK = /^[\p{L}][\p{L} .'-]{0,39}$/u;
 
+/* Values are often pasted the way Upstash shows them: UPSTASH_REDIS_REST_URL="https://…" (with the name, quotes or a ;).
+   Keep only the value itself. */
+export const cleanSecret = v => String(v || '').trim().replace(/^(export\s+)?[A-Z_]+\s*[=:]\s*/, '').trim().replace(/^["'`\s]+|["'`;,\s]+$/g, '');
 export function dbConfig(env, build = {}) {
-  const url = String(env.UPSTASH_REDIS_REST_URL || build.url || '').trim().replace(/\/+$/, '');
-  const token = String(env.UPSTASH_REDIS_REST_TOKEN || build.token || '').trim();
+  let url = cleanSecret(env.UPSTASH_REDIS_REST_URL || build.url).replace(/\/+$/, '');
+  if (/^[A-Za-z0-9-]+\.upstash\.io$/.test(url)) url = 'https://' + url;          // pasted without https://
+  const token = cleanSecret(env.UPSTASH_REDIS_REST_TOKEN || build.token);
   const prefix = /^[a-z0-9-]{1,20}$/.test(env.DB_PREFIX || '') ? env.DB_PREFIX : 'nrw';
-  return {url, token, prefix, ok: /^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(url) && token.length >= 20};
+  const urlOk = /^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(url), tokenOk = /^[A-Za-z0-9_=-]{20,}$/.test(token);
+  let problem = '';
+  if (!url && !token) problem = 'missing';
+  else if (!url) problem = 'UPSTASH_REDIS_REST_URL is missing (the token is there).';
+  else if (!token) problem = 'UPSTASH_REDIS_REST_TOKEN is missing (the URL is there).';
+  else if (!urlOk) problem = /^redis(s)?:/.test(url) ? 'UPSTASH_REDIS_REST_URL is the redis:// connection string; use the https:// address from the REST API section instead.' : 'UPSTASH_REDIS_REST_URL should look like https://name-12345.upstash.io (it starts with ' + url.slice(0, 12) + '…).';
+  else if (!tokenOk) problem = 'UPSTASH_REDIS_REST_TOKEN does not look like an Upstash REST token (copy the long token from the REST API section).';
+  return {url, token, prefix, ok: urlOk && tokenOk, problem};
 }
 
 async function redis(cfg, cmds, atomic = false) {
@@ -43,6 +54,7 @@ function pairs(res) {               // HGETALL comes back as [field, value, fiel
 }
 
 export async function dbStatus(cfg) {
+  if (!cfg.ok && cfg.problem !== 'missing') return 'Team database (Redis): NOT WORKING. ' + cfg.problem + ' Fix it in Cloudflare > this worker > Settings > Variables and Secrets, then Deploy.';
   if (!cfg.ok) return 'Team database (Redis): NOT SET UP. Add the secrets UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN (from console.upstash.com > your database > REST API) to this worker. Until then each dashboard keeps its data on its own computer.';
   try { const [v, n] = await redis(cfg, [['GET', cfg.prefix + ':v'], ['HLEN', cfg.prefix + ':docs']]); return `Team database (Redis): CONNECTED. ${n} records, version ${v || 0}.`; }
   catch (e) { return 'Team database (Redis): ERROR. ' + e.message + '. Check the two Upstash secrets.'; }

@@ -51,4 +51,12 @@ r = await worker.fetch(new Request('https://w.dev/db', {method:'GET', headers:{O
 refuse = true; r = await req('GET', '/db'); j = await r.json(); assert.equal(r.status, 502); assert.match(j.error, /refused/); refuse = false;
 // AI route still guarded
 r = await req('POST', '/', {system:'x', messages:[{role:'user', content:'hi'}]}); assert.equal(r.status, 500);
+const {dbConfig, cleanSecret} = await import('./teamdb.js');
+const tok = 'AYabc' + 'x'.repeat(40);
+for (const [u, want] of [['"https://eu1-cat-123.upstash.io"', 'https://eu1-cat-123.upstash.io'], ['UPSTASH_REDIS_REST_URL="https://eu1-cat-123.upstash.io";', 'https://eu1-cat-123.upstash.io'], ['eu1-cat-123.upstash.io', 'https://eu1-cat-123.upstash.io'], [' https://eu1-cat-123.upstash.io/ ', 'https://eu1-cat-123.upstash.io']]) {
+  const c = dbConfig({UPSTASH_REDIS_REST_URL:u, UPSTASH_REDIS_REST_TOKEN:'"' + tok + '"'}); assert.equal(c.url, want); assert.equal(c.token, tok); assert.ok(c.ok, u);
+}
+assert.match(dbConfig({UPSTASH_REDIS_REST_URL:'rediss://default:x@eu1.upstash.io:6379', UPSTASH_REDIS_REST_TOKEN:tok}).problem, /redis:\/\/ connection string/);
+assert.match(dbConfig({UPSTASH_REDIS_REST_URL:'https://eu1-cat-123.upstash.io'}).problem, /TOKEN is missing/);
+r = await worker.fetch(new Request('https://w.dev/', {method:'GET'}), {UPSTASH_REDIS_REST_URL:'https://a.upstash.io'}); assert.match(await r.text(), /NOT WORKING\. UPSTASH_REDIS_REST_TOKEN is missing/);
 console.log('worker db tests passed;', calls, 'redis calls');
