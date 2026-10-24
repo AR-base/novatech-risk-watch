@@ -17,6 +17,7 @@ Site: https://ar-base.github.io/novatech-risk-watch/ · co-pilot direct link: ht
 - **Live clue feed, mitigation plan (9 actions) and benefits** (expected annual loss before and after the plan).
 - **Live radar:** marking an action done, reassessing a risk or logging an indicator moves the dot straight away, with a trail, a ripple and a badge ("−2 · Moderate" or "−18%"). The *Radar logbook* under the headline says who changed what.
 - **Team database (Redis):** all dashboards share one database, so a change on any laptop shows on every screen within about 3 seconds. Without it, each computer keeps its own data.
+- **Incident cost on Contain:** every dashboard shows the damage already done, the loss avoided by containing and the worst case, the cost of each hour of delay and where the damage comes from. Worst case = the € cost of the risk's impact level (Benefits tab); damage grows from the alert to containment at a speed set per risk. The *avoided* amount is secured step by step as the response is completed.
 - **Incident response:** alerts go to the phone of each responsible person; *Contain* sends every step owner their task with a *Done* button; containing R2, R5 or R16 isolates the demo laptop (`#device=LAPTOP-07`, or `demo/device-agent.bat` on a real Windows PC).
 
 **Start-up co-pilot** (for anyone starting a company)

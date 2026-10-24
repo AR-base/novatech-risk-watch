@@ -578,6 +578,42 @@ a.btn{display:inline-flex;align-items:center;text-decoration:none;align-self:fle
 .tdb-steps code{font-size:12px}
 @media (prefers-reduced-motion:reduce){.lb-list li:first-child .lb-item,.lb-live.on i{animation:none}}
 .toast .tm{white-space:pre-line}
+/* ── incident cost sheet ── */
+.imp-sheet{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.55);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);animation:impfade .25s ease}
+.imp-card{width:min(720px,100%);max-height:calc(100vh - 32px);overflow:auto;border-radius:24px;padding:26px 28px 22px;background:var(--solid);border:1px solid var(--line-2);box-shadow:0 30px 80px rgba(0,0,0,.5);animation:impup .45s cubic-bezier(.22,1,.36,1)}
+@keyframes impfade{from{opacity:0}}
+@keyframes impup{from{transform:translateY(24px) scale(.97);opacity:0}}
+.imp-kick{display:flex;align-items:center;gap:8px;margin:0;font:700 12.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--low)}
+.imp-dot{width:8px;height:8px;border-radius:50%;background:var(--low);box-shadow:0 0 10px var(--low)}
+.imp-card h2{font-family:var(--f-display);font-size:30px;letter-spacing:-.03em;margin:6px 0 2px}
+.imp-sub{margin:0 0 18px;color:var(--muted);font-size:14px}
+.imp-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.imp-tile{border-radius:16px;padding:14px 14px 12px;background:var(--panel-2);display:flex;flex-direction:column;gap:4px;min-width:0}
+.imp-tile span{font-size:12.5px;color:var(--muted)}
+.imp-tile b{font:800 28px var(--f-display);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.imp-tile small{font-size:12px;color:var(--muted)}
+.imp-tile.bad b{color:var(--crit)} .imp-tile.good b{color:var(--low)} .imp-tile.neutral b{color:var(--ink)}
+.imp-bar{display:flex;height:10px;border-radius:99px;overflow:hidden;margin:16px 0 10px;background:var(--panel-2)}
+.imp-bar i{display:block;height:100%;transform-origin:left;animation:impgrow 1.1s cubic-bezier(.22,1,.36,1) both}
+.imp-bar i.bad{background:var(--crit)} .imp-bar i.good{background:var(--low);animation-delay:.25s}
+@keyframes impgrow{from{transform:scaleX(0)}}
+.imp-delay{margin:0 0 14px;font-size:14px;color:var(--muted)} .imp-delay b{color:var(--high)}
+.imp-split h3{margin:0 0 8px;font:700 12.5px var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.imp-row{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(60px,1fr) auto;gap:12px;align-items:center;padding:6px 0;font-size:14px;border-top:1px solid var(--line)}
+.imp-row span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp-row i{display:block;height:6px;border-radius:99px;background:var(--panel-2);overflow:hidden}
+.imp-row u{display:block;height:100%;background:var(--crit);opacity:.85;transform-origin:left;animation:impgrow .9s .3s cubic-bezier(.22,1,.36,1) both}
+.imp-row b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.imp-note{margin:14px 0 0;font-size:12px;color:var(--faint);line-height:1.5}
+.imp-actions{display:flex;justify-content:flex-end;margin-top:14px}
+.imp-line{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:8px 0;font-size:13.5px}
+.imp-k{display:inline-flex;align-items:center;gap:6px;color:var(--muted)}
+.imp-k i{width:7px;height:7px;border-radius:50%}
+.imp-k.bad i{background:var(--crit)} .imp-k.good i{background:var(--low)}
+.imp-k.bad b{color:var(--crit)} .imp-k.good b{color:var(--low)}
+.imp-line .btn.small{padding:4px 10px;font-size:12.5px}
+@media (max-width:600px){.imp-tiles{grid-template-columns:1fr}.imp-card{padding:20px 18px}.imp-card h2{font-size:24px}.imp-tile b{font-size:24px}}
+@media (prefers-reduced-motion:reduce){.imp-sheet,.imp-card,.imp-bar i,.imp-row u{animation:none}}
 </style>
 </head>
 <body>
@@ -863,6 +899,7 @@ function renderChrome(){
     const bp = document.querySelector('.brand p'), sub = co ? `Risk co-pilot for ${co}, by Anish, Mereena, Sudheer, Fatah, Rambabu, Niranjan and Krishna` : 'Live risk radar for the Direction, by Anish, Mereena, Sudheer, Fatah, Rambabu, Niranjan and Krishna';
     if (bp && bp.dataset.src !== sub) { bp.dataset.src = sub; bp.textContent = sub; } }
   listenForCommands();
+  checkImpactSheet();
   const root = document.documentElement;
   root.setAttribute('data-theme', S.prefs.theme === 'light' ? 'light' : 'dark');
   const tb = document.getElementById('theme');
@@ -2631,6 +2668,114 @@ function radarLogbook(){
     })) : el('p', {class:'lb-empty', text:'Nothing logged yet. Mark an action done or log an indicator: the dot moves on every dashboard.'}));
 }
 
+/* ───────────── Incident cost: damage done and loss avoided ─────────────
+   The moment an incident is contained, every dashboard shows what it has cost so far and what containment saves.
+   Worst case = the € cost of the risk's impact level (the same cost table as the expected-loss figures, editable in
+   Benefits). Damage starts at a share that is lost as soon as the event happens, then grows from the moment the alert
+   went off until containment, at the speed typical for that kind of risk. Containment stops the growth; the rest of
+   the worst case is the loss avoided, secured step by step as the response is completed. */
+const IMPACT_PROFILE = {
+  R1:{onset:.05, hours:48,  split:[['SLA penalties and lost service hours', 'Pénalités SLA et heures de service perdues', .55], ['Recovery work and overtime', 'Remise en service et heures sup.', .25], ['Client goodwill', 'Confiance des clients', .2]]},
+  R2:{onset:.08, hours:72,  split:[['Business interruption', 'Interruption d’activité', .45], ['Recovery and forensics', 'Remise en état et investigation', .25], ['GDPR and legal costs', 'Coûts RGPD et juridiques', .15], ['Clients lost', 'Clients perdus', .15]]},
+  R3:{onset:.06, hours:72,  split:[['CNIL fine and legal costs', 'Amende CNIL et frais juridiques', .45], ['Notifying and supporting people', 'Notification et accompagnement des personnes', .2], ['Lost client trust', 'Perte de confiance des clients', .35]]},
+  R4:{onset:.04, hours:336, split:[['Late-delivery penalties', 'Pénalités de retard', .5], ['Replacement supplier costs', 'Coût d’un fournisseur de remplacement', .3], ['Complaints and rework', 'Réclamations et reprises', .2]]},
+  R5:{onset:.07, hours:72,  split:[['Breach response', 'Réponse à la faille', .35], ['GDPR and legal costs', 'Coûts RGPD et juridiques', .35], ['Lost client trust', 'Perte de confiance des clients', .3]]},
+  R6:{onset:.05, hours:720, split:[['Lost recurring revenue', 'Chiffre d’affaires récurrent perdu', .8], ['Cost of winning new clients', 'Coût pour regagner des clients', .2]]},
+  R7:{onset:.03, hours:720, split:[['Rework and SLA breaches', 'Reprises et non-respect des SLA', .6], ['Quality issues', 'Problèmes de qualité', .4]]},
+  R8:{onset:.03, hours:720, split:[['Errors and rework', 'Erreurs et reprises', .6], ['Lost know-how', 'Savoir-faire perdu', .4]]},
+  R9:{onset:.05, hours:336, split:[['Incident that escalates', 'Incident qui s’aggrave', .7], ['Investigation', 'Investigation', .3]]},
+  R10:{onset:.03, hours:1440, split:[['Absence and replacement', 'Absences et remplacements', .6], ['Staff turnover', 'Départs de salariés', .4]]},
+  R11:{onset:.03, hours:720, split:[['Short-term financing', 'Financement court terme', .4], ['Late-payment penalties', 'Pénalités de retard de paiement', .3], ['Delayed projects', 'Projets retardés', .3]]},
+  R12:{onset:.04, hours:720, split:[['Contract penalties', 'Pénalités contractuelles', .6], ['Legal costs', 'Frais juridiques', .4]]},
+  R13:{onset:.05, hours:168, split:[['Data leakage', 'Fuite de données', .5], ['Clean-up of unapproved tools', 'Nettoyage des outils non approuvés', .5]]},
+  R14:{onset:.04, hours:336, split:[['Remediation across sites', 'Mise à niveau des sites', .6], ['Exposure of the weakest site', 'Exposition du site le plus faible', .4]]},
+  R15:{onset:.07, hours:72,  split:[['Data theft or sabotage', 'Vol de données ou sabotage', .5], ['Investigation', 'Investigation', .3], ['Access clean-up', 'Nettoyage des accès', .2]]},
+  R16:{onset:.07, hours:72,  split:[['Data leak', 'Fuite de données', .45], ['GDPR and legal costs', 'Coûts RGPD et juridiques', .35], ['Investigation', 'Investigation', .2]]},
+};
+/* When did the alert start? The first reading of the current run of amber/red readings (dossier facts do not start a clock). */
+function alertSince(rid){
+  let since = null;
+  for (const k of krisOf(rid)) {
+    const rs = readings(k); if (!rs.length || KRANK[kriLevel(k, rs[rs.length - 1].v)] < 2) continue;
+    let j = rs.length - 1; while (j > 0 && KRANK[kriLevel(k, rs[j - 1].v)] >= 2) j--;
+    const first = rs.slice(j).find(x => x.src !== 'dossier'); if (!first) continue;
+    if (!since || Date.parse(first.at) < Date.parse(since)) since = first.at;
+  }
+  return since;
+}
+function impactOf(rid, atMs = Date.now()){
+  const r = riskById[rid], pf = IMPACT_PROFILE[rid], lvl = inh(r).i, worst = assump().imp[lvl - 1];
+  const since = alertSince(rid), mins = since ? Math.max(0, (atMs - Date.parse(since)) / 60000) : 0;
+  const share = Math.min(.95, pf.onset + (1 - pf.onset) * (mins / 60) / pf.hours);
+  const done = Math.round(worst * share / 100) * 100;
+  return {worst, done, avoided:worst - done, perHour:Math.round(worst * (1 - pf.onset) / pf.hours), since, mins:Math.round(mins), lvl, hours:pf.hours};
+}
+const impactOk = m => m && ['worst', 'done', 'avoided', 'perHour', 'mins', 'lvl', 'hours'].every(k => Number.isFinite(m[k]) && m[k] >= 0);
+const durTxt = m => m < 1 ? L('less than a minute', 'moins d’une minute') : m < 60 ? `${Math.round(m)} min` : m < 2880 ? `${Math.round(m / 60)} h` : L(`${Math.round(m / 1440)} days`, `${Math.round(m / 1440)} jours`);
+/* "secured" grows as response steps are done; when the incident is closed the whole avoided loss is secured */
+function impactLine(id, d){
+  const m = d && d.impact; if (!impactOk(m)) return null;
+  const total = (d.steps || []).length, n = stepsDone(d), secured = total ? Math.round(m.avoided * n / total) : 0, closed = total && n === total;
+  return el('p', {class:'imp-line', 'data-notr':''},
+    el('span', {class:'imp-k bad'}, el('i'), L('Damage ', 'Dommages '), el('b', {text:fmtEUR(m.done)})),
+    el('span', {class:'imp-k good'}, el('i'), closed ? L('Loss avoided ', 'Perte évitée ') : L('Avoided so far ', 'Évité à ce stade '), el('b', {text:fmtEUR(closed ? m.avoided : secured)}), closed ? null : el('span', {class:'muted', text:L(` of ${fmtEUR(m.avoided)}`, ` sur ${fmtEUR(m.avoided)}`)})),
+    el('button', {class:'btn small', type:'button', onclick:() => showImpactSheet([id])}, L('Cost details', 'Détail des coûts')));
+}
+/* Full-screen sheet: opens on every dashboard right after a containment */
+let impSeen = null;
+function checkImpactSheet(){
+  if (DEVICE_MODE || !S.response) return;
+  const fresh = Object.keys(S.response).filter(id => { const d = responseOf(id); return riskById[id] && d && impactOk(d.impact) && Date.now() - Date.parse(d.at) < 90000; });
+  if (impSeen === null) impSeen = new Map();
+  /* one sheet per incident: several dashboards may each record the same containment a moment apart */
+  const neu = fresh.filter(id => !(impSeen.has(id) && (impSeen.get(id) === responseOf(id).at || Date.now() - impSeen.get(id + '#t') < 90000)));
+  if (!neu.length) return;
+  neu.forEach(id => { impSeen.set(id, responseOf(id).at); impSeen.set(id + '#t', Date.now()); });
+  const at = responseOf(neu[0]).at;
+  setTimeout(() => showImpactSheet(neu.filter(id => responseOf(id).at === at)), 150);
+}
+function countUp(node, to){
+  if (reduceMotion()) { node.textContent = fmtEUR(to); return; }
+  const t0 = performance.now(), dur = 1100;
+  const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); node.textContent = fmtEUR(Math.round(to * e / 100) * 100); if (k < 1 && node.isConnected) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function showImpactSheet(ids){
+  ids = ids.filter(id => responseOf(id) && impactOk(responseOf(id).impact)); if (!ids.length) return;
+  document.querySelectorAll('.imp-sheet').forEach(x => x.remove());
+  const docs = ids.map(id => [id, responseOf(id), responseOf(id).impact]);
+  const sum = k => docs.reduce((t, [, , m]) => t + m[k], 0);
+  const W = sum('worst'), D = sum('done'), A = sum('avoided'), H = sum('perHour');
+  const d0 = docs[0][1], one = ids.length === 1, r0 = riskById[ids[0]];
+  const prev = document.activeElement;
+  const close = () => { wrap.remove(); document.removeEventListener('keydown', onKey); if (prev && prev.focus) prev.focus(); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  const tile = (cls, label, val, sub) => { const b = el('b', {text:fmtEUR(0)}); countUp(b, val); return el('div', {class:'imp-tile ' + cls}, el('span', {text:label}), b, sub ? el('small', {text:sub}) : null); };
+  const split = one ? IMPACT_PROFILE[ids[0]].split : null;
+  const card = el('div', {class:'imp-card', role:'dialog', 'aria-modal':'true', 'aria-labelledby':'imp-h', 'data-notr':''},
+    el('p', {class:'imp-kick'}, el('span', {class:'imp-dot'}), L('Incident contained', 'Incident contenu')),
+    el('h2', {id:'imp-h', text:one ? `${r0.id} ${L(r0.name, trFR(r0.name))}` : L(`${ids.length} incidents contained`, `${ids.length} incidents contenus`)}),
+    el('p', {class:'imp-sub', text:[d0.by ? L(`By ${d0.by}`, `Par ${d0.by}`) : null, d0.via === 'phone' ? L('from a phone', 'depuis un téléphone') : null,
+      one ? (docs[0][2].since ? L(`${durTxt(docs[0][2].mins)} after the alert`, `${durTxt(docs[0][2].mins)} après l’alerte`) : L('at the first warning', 'dès le premier signal')) : null].filter(Boolean).join(' · ')}),
+    el('div', {class:'imp-tiles'},
+      tile('bad', L('Damage already done', 'Dommages déjà subis'), D, L(`${Math.round(D / W * 100)}% of the worst case`, `${Math.round(D / W * 100)} % du pire scénario`)),
+      tile('good', L('Loss avoided by containing', 'Perte évitée grâce au confinement'), A, L('secured as the response steps are done', 'sécurisée au fil des étapes de réponse')),
+      tile('neutral', L('Worst case if nothing was done', 'Pire scénario sans action'), W, one ? L(`impact level ${docs[0][2].lvl} in the cost table`, `niveau d’impact ${docs[0][2].lvl} du tableau des coûts`) : null)),
+    el('div', {class:'imp-bar', role:'img', 'aria-label':L(`${fmtEUR(D)} lost, ${fmtEUR(A)} avoided`, `${fmtEUR(D)} perdus, ${fmtEUR(A)} évités`)},
+      el('i', {class:'bad', style:`width:${Math.max(2, D / W * 100)}%`}), el('i', {class:'good', style:`width:${A / W * 100}%`})),
+    el('p', {class:'imp-delay'}, L('Every hour of delay would have cost about ', 'Chaque heure de retard aurait coûté environ '), el('b', {text:fmtEUR(H)}), '.'),
+    one ? el('div', {class:'imp-split'}, el('h3', {text:L('Where the damage comes from', 'D’où viennent les dommages')}),
+      ...split.map(([en, fr, w]) => el('div', {class:'imp-row'}, el('span', {text:L(en, fr)}), el('i', null, el('u', {style:`width:${w * 100}%`})), el('b', {text:fmtEUR(Math.round(D * w / 100) * 100)}))))
+      : el('div', {class:'imp-split'}, el('h3', {text:L('By incident', 'Par incident')}),
+        ...docs.map(([id, , m]) => el('div', {class:'imp-row'}, el('span', {text:`${id} ${L(riskById[id].name, trFR(riskById[id].name))}`}), el('i', null, el('u', {style:`width:${m.done / m.worst * 100}%`})), el('b', {text:`${fmtEUR(m.done)} / ${fmtEUR(m.avoided)}`})))),
+    el('p', {class:'imp-note', text:L(`Estimate. Worst case = cost of the risk’s impact level (Benefits tab). The damage grows from the alert until containment; without action ${one ? `this risk reaches its full cost in about ${durTxt(docs[0][2].hours * 60)}` : 'each risk reaches its full cost at its own speed'}.`,
+      `Estimation. Pire scénario = coût du niveau d’impact du risque (onglet Bénéfices). Les dommages augmentent de l’alerte au confinement ; sans action ${one ? `ce risque atteint son coût total en environ ${durTxt(docs[0][2].hours * 60)}` : 'chaque risque atteint son coût total à son rythme'}.`)}),
+    el('div', {class:'imp-actions'}, el('button', {class:'btn primary', type:'button', onclick:close}, L('Follow the response', 'Suivre la réponse'))));
+  const wrap = el('div', {class:'imp-sheet', onclick:e => { if (e.target === wrap) close(); }}, card);
+  document.body.append(wrap); document.addEventListener('keydown', onKey);
+  setTimeout(() => { const b = card.querySelector('.imp-actions .btn'); if (b) b.focus(); }, 50);
+}
+
 /* ───────────── Incident response: contain an attack, from the dashboard or the phone ─────────────
    "Acknowledge" only snoozes an alert. "Contain" runs the risk's response playbook: it records each containment step,
    starts the linked mitigation actions, logs the incident in the clue feed, stops the alert and confirms on the phone.
@@ -2723,7 +2868,7 @@ async function containRisk(rids, via, by, lead = true){
     if (via === 'dashboard') postCmd(`CONTAIN ${ids.length > 1 ? 'ALL' : ids[0]}${who ? ' by ' + who : ''}`);
     for (const rid of ids) {
       const r = riskById[rid], play = playOf(rid);
-      const doc = {at, by:who, via, owner:ownerOf(rid), steps:play.map(x => x[0]), owners:play.map(x => x[1]), people:play.map(x => personOf(x[1], rid)), done:play.map(() => null)};
+      const doc = {at, by:who, via, impact:impactOf(rid, Date.parse(at)), owner:ownerOf(rid), steps:play.map(x => x[0]), owners:play.map(x => x[1]), people:play.map(x => personOf(x[1], rid)), done:play.map(() => null)};
       await guarded('response/' + rid, () => S.db.doc('response/' + rid).set(doc));
       for (const aid of r.actions) if (actStatus(aid) === 'not') await setStatus(aid, 'prog');
       await guarded('clue', async () => { const ref = await S.db.collection('clues').add({text:`Containment of ${rid} ${r.name}${via === 'phone' ? ' started from a phone' : ''}: ${play.map(x => `${x[0]} (${x[1]})`).join('; ')}.`, dept:r.cat.startsWith('Cyber') || r.cat.includes('IT') ? 'IT department' : 'Direction', risks:[rid], effect:'none', at, by:who}); S.localIds.add(ref.id); });
@@ -2741,7 +2886,7 @@ async function containRisk(rids, via, by, lead = true){
     }
     const names = ids.map(id => `${id} ${riskById[id].name}`);
     toast('info', tr(via === 'phone' ? `Contained from a phone: ${names.join(', ')}` : `Contained: ${names.join(', ')}`), tr(`${ids.reduce((n, id) => n + playOf(id).length, 0)} response steps assigned; linked actions started.`), ids[0]);
-    if (lead) phonePush(`Contained: ${names.join(', ')}`, ids.map(id => [whoLine(id), ...playOf(id).map(x => `→ ${x[0]} (${x[1]}: ${personOf(x[1], id)})`)].join('\n')).join('\n\n') + (who ? `\nBy ${who}${via === 'phone' ? ' (phone)' : ''}` : ''), 3, ['white_check_mark']);
+    if (lead) phonePush(`Contained: ${names.join(', ')}`, ids.map(id => [whoLine(id), (m => L(`Damage so far ≈ ${fmtEUR(m.done)} · loss avoided ≈ ${fmtEUR(m.avoided)} (worst case ${fmtEUR(m.worst)})`, `Dommages ≈ ${fmtEUR(m.done)} · perte évitée ≈ ${fmtEUR(m.avoided)} (pire scénario ${fmtEUR(m.worst)})`))(impactOf(id, Date.parse(at))), ...playOf(id).map(x => `→ ${x[0]} (${x[1]}: ${personOf(x[1], id)})`)].join('\n')).join('\n\n') + (who ? `\nBy ${who}${via === 'phone' ? ' (phone)' : ''}` : ''), 3, ['white_check_mark']);
     schedule();
     return true;
   } finally { containing = false; setTimeout(() => { S.quietLog = false; }, 500); }
@@ -2808,6 +2953,7 @@ function responsePanel(){
         el('p', {class:'resp-who'}, el('span', {text:'Accountable: '}), el('b', {text:`${ownerOf(id)} (${personOf(ownerOf(id), id)})`}), el('span', {text:' · '}), el('span', {text:'Risk analyst: '}), el('b', {text:r.analyst}),
           DEVICE_RISKS.includes(id) ? el('span', {class:'pill critical', style:'margin-left:8px'}, el('i'), 'Laptops isolated') : null),
         el('div', {class:'resp-bar', 'aria-hidden':'true'}, el('i', {style:`width:${total ? Math.round(n / total * 100) : 0}%`})),
+        impactLine(id, d),
         stepList(id, d));
     })));
 }
@@ -2820,6 +2966,7 @@ function responseBlock(r){
       el('div', null, el('span', {text:'Risk analyst (team)'}), el('b', {text:r.analyst})),
       el('div', null, el('span', {text:'Phones alerted'}), el('b', {text:[...new Set([...people, ...playOf(r.id).map(x => personOf(x[1], r.id))])].join(', ')}))),
     el('h3', {class:'sec', style:'margin-top:16px', text:'Response playbook'}),
+    d ? impactLine(r.id, d) : null,
     d ? stepList(r.id, d) : el('ol', {class:'play'}, ...playOf(r.id).map(([st, ow]) => el('li', null, el('span', {class:'resp-step', text:st}), el('span', {class:'owner-chip'}, el('span', {text:ow}), ' · ', el('b', {text:personOf(ow, r.id)}))))),
     el('div', {style:'display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px'},
       d ? el('span', {class:'pill ok'}, el('i'), `Contained ${ago(d.at)}${d.via === 'phone' ? ' from a phone' : ''}`) : null,
