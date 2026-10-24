@@ -15,12 +15,35 @@ Site: https://ar-base.github.io/novatech-risk-watch/ · co-pilot direct link: ht
 - **Persistent notifications:** open alerts pop up when the page opens and repeat. Acknowledging snoozes an alert for 5 minutes; every reload brings all open alerts back.
 - **Phone alerts** through the free ntfy app (channel set in *Phone alerts & help*).
 - **Live clue feed, mitigation plan (9 actions) and benefits** (expected annual loss before and after the plan).
+- **Live radar:** marking an action done, reassessing a risk or logging an indicator moves the dot straight away, with a trail, a ripple and a badge ("−2 · Moderate" or "−18%"). The *Radar logbook* under the headline says who changed what.
+- **Team database (Redis):** all dashboards share one database, so a change on any laptop shows on every screen within about 3 seconds. Without it, each computer keeps its own data.
+- **Incident response:** alerts go to the phone of each responsible person; *Contain* sends every step owner their task with a *Done* button; containing R2, R5 or R16 isolates the demo laptop (`#device=LAPTOP-07`, or `demo/device-agent.bat` on a real Windows PC).
 
 **Start-up co-pilot** (for anyone starting a company)
 - **Ten everyday questions** produce a personal risk radar and a plan: for each risk, why it matters for *this* business, one action for this week with a rough cost, and one number to watch.
 - **"Something happened?"**: describe an incident in your own words; it finds the risks it points to, suggests raising them, and lists what to do today.
 - **Weekly briefing** sent to your phone.
 - **Two engines:** a built-in engine (instant, free, private, works offline) and optional **Claude AI** for a personalised analysis. If the AI cannot answer, the built-in engine takes over.
+
+## Requirements
+
+| What | Needed for | Cost |
+|---|---|---|
+| A modern browser (Chrome, Edge, Safari, Firefox) | the dashboard | free |
+| The **ntfy** app on each phone, one personal channel per teammate | phone alerts and *Done* buttons | free |
+| A **Cloudflare** account with the worker `novatech-risk-watch` (this repo deploys it automatically) | AI server and team database | free plan |
+| An **Upstash Redis** database (console.upstash.com) | shared team database | free plan |
+| A Claude API key (`sk-ant-api03-…`) from console.anthropic.com | optional Claude analysis in the co-pilot | pay per use |
+| Windows PowerShell | optional real lock / shutdown in the demo (`demo/device-agent.bat`) | built in |
+
+## Team database (Redis)
+
+1. Create a free Redis database at [console.upstash.com](https://console.upstash.com) (region near Paris).
+2. In the database page, section **REST API**, copy `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`.
+3. Cloudflare → Workers & Pages → `novatech-risk-watch` → Settings → Variables and Secrets → **Add**, type *Secret*, once for each name and value. Click **Deploy**.
+4. Open the worker address: the status page must say `Team database (Redis): CONNECTED`. Then open the dashboard: the header shows *Live · team database (Redis)*.
+
+The first dashboard that connects copies its data into the empty database; every other dashboard then loads it. The server (`ai-server/teamdb.js`) only accepts the dashboard's own website, checks every record (allowed collections, size, count), limits requests per visitor and keeps the last 300 changes in an audit list (`nrw:audit`). Redis keys: `nrw:docs` (hash of records), `nrw:v` (version, +1 per change).
 
 ## Turning on Claude AI
 
@@ -40,6 +63,6 @@ Two ways, chosen in *Start-up co-pilot → Analysis engine*:
 
 ## Privacy and data
 
-Everything is saved in the browser (localStorage) on the device you use. Co-pilot answers and incidents never leave the device unless Claude AI is switched on, in which case they are sent to Anthropic for the analysis. Use *Phone alerts & help → Download backup / Load a backup* to move NOVATECH data between computers.
+Everything is saved in the browser (localStorage) on the device you use and, when the team database is set up, in the team's Redis database. Co-pilot answers and incidents never leave the device unless Claude AI is switched on, in which case they are sent to Anthropic for the analysis. Use *Phone alerts & help → Download backup / Load a backup* to move NOVATECH data between computers.
 
 Single static page: no build step, no external scripts (Google Fonts only). The previous design is kept at `classic.html`.

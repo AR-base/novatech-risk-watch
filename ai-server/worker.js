@@ -2,19 +2,31 @@
 // Keeps the Claude API key secret so visitors of the dashboard can use the AI analysis without a key of their own.
 // Only the dashboard's own address may call it, requests are size-limited, the model and output length are fixed,
 // and each visitor is limited to a few calls per minute.
+// It also serves the shared team database (Redis, see teamdb.js) at /db.
 
 import BUILD_KEY from './build-key.js';
+import BUILD_REDIS from './build-redis.js';
+import {dbConfig, dbStatus, dbRead, dbWrite, validateWrite, DB_LIMITS} from './teamdb.js';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 2000;
 const MAX_BODY = 24000;          // bytes accepted from the browser
 const PER_MINUTE = 8;            // calls per visitor per minute (best effort, per server instance)
 const hits = new Map();
+const dbHits = new Map();
+const DB_READS_PER_MINUTE = 600, DB_WRITES_PER_MINUTE = 240;   // a whole class shares one school IP
+function limited(map, ip, max) {
+  const now = Date.now(), recent = (map.get(ip) || []).filter(t => now - t < 60000);
+  if (recent.length >= max) return true;
+  recent.push(now); map.set(ip, recent);
+  if (map.size > 5000) map.clear();
+  return false;
+}
 
 function cors(origin, allowed) {
   return {
     'Access-Control-Allow-Origin': allowed.includes(origin) ? origin : allowed[0],
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'content-type',
     'Access-Control-Max-Age': '86400',
     'Vary': 'Origin',
@@ -24,7 +36,7 @@ const reply = (status, body, headers) => new Response(typeof body === 'string' ?
 
 /* Status page: opening the server address in a browser tells you whether the Claude key works. Checked at most once a minute. */
 let lastCheck = {at: 0, text: ''};
-async function statusPage(KEY, env, h) {
+async function statusPage(KEY, env, h, db) {
   const src = env.ANTHROPIC_API_KEY ? 'Cloudflare secret' : 'build settings';
   let text;
   if (!KEY) text = 'Claude key: MISSING. In Cloudflare open this worker > Settings > Variables and Secrets > Add: Type Secret, name ANTHROPIC_API_KEY, value your key from console.anthropic.com. Then click Deploy.';
@@ -43,7 +55,8 @@ async function statusPage(KEY, env, h) {
     text = `Claude key: found (from ${src}); ${kind}. ${verdict}`;
     lastCheck = {at: Date.now(), text};
   }
-  return new Response('NOVATECH Risk Watch AI server is running.\n' + text + '\nAllowed website: ' + ((env.ALLOWED_ORIGINS || 'https://ar-base.github.io')) + '\nAddress to paste in Start-up co-pilot > Analysis engine > Claude: AI server: this page\'s address.',
+  const dbLine = await dbStatus(db);
+  return new Response('NOVATECH Risk Watch AI server is running.\n' + text + '\n' + dbLine + '\nAllowed website: ' + ((env.ALLOWED_ORIGINS || 'https://ar-base.github.io')) + '\nAddress to paste in Start-up co-pilot > Analysis engine > Claude: AI server: this page\'s address.',
     {status: 200, headers: {...h, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store'}});
 }
 
@@ -54,7 +67,10 @@ export default {
     const origin = request.headers.get('Origin') || '';
     const h = cors(origin, allowed);
     if (request.method === 'OPTIONS') return new Response(null, {status: 204, headers: h});
-    if (request.method === 'GET') return statusPage(KEY, env, h);
+    const url = new URL(request.url);
+    const db = dbConfig(env, BUILD_REDIS || {});
+    if (url.pathname === '/db') return teamDb(request, url, db, origin, allowed, h);
+    if (request.method === 'GET') return statusPage(KEY, env, h, db);
     if (request.method !== 'POST') return reply(405, {error: 'Use POST'}, h);
     if (!allowed.includes(origin)) return reply(403, {error: 'Origin not allowed'}, h);
     if (!KEY) return reply(500, {error: 'Server key not configured'}, h);
@@ -82,3 +98,27 @@ export default {
     return reply(upstream.status, text, h);
   },
 };
+
+/* Shared team database: GET reads (or says "nothing changed"), POST writes. Only the dashboard's own website may call it. */
+async function teamDb(request, url, db, origin, allowed, h) {
+  const hh = {...h, 'cache-control': 'no-store'};
+  if (!allowed.includes(origin)) return reply(403, {error: 'Origin not allowed'}, hh);
+  if (!db.ok) return reply(503, {error: 'Team database not configured'}, hh);
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  try {
+    if (request.method === 'GET') {
+      if (limited(dbHits, 'r' + ip, DB_READS_PER_MINUTE)) return reply(429, {error: 'Too many requests'}, hh);
+      return reply(200, await dbRead(db, url), hh);
+    }
+    if (request.method !== 'POST') return reply(405, {error: 'Use GET or POST'}, hh);
+    if (limited(dbHits, 'w' + ip, DB_WRITES_PER_MINUTE)) return reply(429, {error: 'Too many changes, wait a minute'}, hh);
+    const raw = await request.text();
+    if (raw.length > DB_LIMITS.MAX_REPLACE) return reply(413, {error: 'Request too large'}, hh);
+    let body; try { body = JSON.parse(raw); } catch { return reply(400, {error: 'Invalid JSON'}, hh); }
+    const bad = validateWrite(body);
+    if (bad) return reply(400, {error: bad}, hh);
+    return reply(200, await dbWrite(db, body), hh);
+  } catch (e) {
+    return reply(e.status || 502, {error: String(e.message || e).slice(0, 200)}, hh);
+  }
+}
