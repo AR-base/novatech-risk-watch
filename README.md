@@ -4,6 +4,8 @@ Live risk dashboard built for the ESAIP Risk Management "Risk Detective" case (N
 
 **Team:** Anish, Mereena, Sudheer, Fatah, Rambabu, Krishna, Niranjan
 
+Story site (scroll, interactive, live numbers): https://ar-base.github.io/novatech-risk-watch/story.html
+
 Site: https://ar-base.github.io/novatech-risk-watch/ · co-pilot direct link: https://ar-base.github.io/novatech-risk-watch/#copilot
 
 ## What it does
