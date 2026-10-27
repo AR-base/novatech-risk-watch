@@ -31,6 +31,11 @@ button{font:inherit;color:inherit}
 .search input::placeholder{color:var(--muted)}
 .logo{justify-self:center;font:400 34px/1 var(--f-display);letter-spacing:.08em;color:var(--crimson);text-decoration:none;text-shadow:0 0 30px rgba(224,24,47,.35)}
 .right{display:flex;align-items:center;gap:12px}
+.handbtn{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font:700 13px var(--f-body);color:var(--bone);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:999px;padding:7px 12px}
+.handbtn:hover{background:rgba(255,255,255,.15)}
+.handbtn[aria-pressed="true"]{background:var(--crimson);border-color:var(--crimson)}
+.strip.hand-hover{outline-offset:-3px!important}
+@media (max-width:860px){.handbtn span{display:none}}
 .lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
 .lang button{all:unset;cursor:pointer;font:700 12.5px var(--f-body);padding:6px 11px;color:var(--muted)}
 .lang button[aria-pressed="true"]{background:var(--bone);color:var(--night)}
@@ -223,6 +228,7 @@ dialog::backdrop{background:#000}
   <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span class="sr" data-t="Search the risks">Search the risks</span><input id="q" type="search" autocomplete="off" maxlength="40" placeholder="Search" data-tp="Search"></label>
   <a class="logo" href="#home" aria-label="NOVATECH Risk Watch">NOVATECH</a>
   <div class="right">
+    <button class="handbtn" id="handbtn" type="button" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12m0-6.5v-1a1.5 1.5 0 0 1 3 0V12m0-6a1.5 1.5 0 0 1 3 0v6m0-3a1.5 1.5 0 0 1 3 0v5a7 7 0 0 1-7 7h-1a7 7 0 0 1-5.6-2.8L4.2 15a1.5 1.5 0 0 1 2.3-2L8 14.5"/></svg><span data-t="Hand control">Hand control</span></button>
     <div class="lang" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="fr" aria-pressed="false">FR</button></div>
     <a class="btn" href="./" data-t="Open the dashboard">Open the dashboard</a>
   </div>
@@ -311,6 +317,7 @@ dialog::backdrop{background:#000}
 <dialog id="feat" aria-labelledby="f-h"><div class="feat" id="feat-in"></div></dialog>
 
 <script>
+__HANDCTL__
 __POSTERS__
 (() => {
 'use strict';
@@ -544,6 +551,25 @@ function renderAll(force){
   if (force || sig !== crewSig) { crewSig = sig; renderCrew(); }
   if (force) $('#player-main').replaceWith(playerEl('player-main'));
 }
+/* hand control: the fingertip chooses posters, tilts the featured card and moves the gallery */
+const HAND = {t,
+  onMove:(x, y, under) => {
+    const dlg = $('#feat');
+    if (dlg.open) {
+      const box = $('#feat-in'), dx = x / innerWidth - .5, dy = y / innerHeight - .5;
+      const card = box.querySelector('.card'); if (card) card.style.transform = `perspective(900px) rotateY(${(dx * 22).toFixed(1)}deg) rotateX(${(-dy * 16).toFixed(1)}deg)`;
+      if (box.classList.contains('gallery')) $$('.gal .tile', box).forEach((tl, i) => { const f = (i % 3 + 1) * 10; tl.style.translate = `${(-dx * f).toFixed(1)}px ${(-dy * f).toFixed(1)}px`; });
+      return;
+    }
+    const strip = under && under.closest && under.closest('.strip');
+    if (strip) { const k = $$('.strip').indexOf(strip); if (k >= 0 && k !== active) { userTook = true; setActive(k); } }
+  },
+  onBack:() => { const dlg = $('#feat'), box = $('#feat-in'); if (!dlg.open) return; if (box.classList.contains('gallery') || box.classList.contains('watching')) { box.classList.remove('gallery', 'watching'); clearTimeout(playT); } else dlg.close(); },
+  canScroll:() => !$('#feat').open,
+  onState:v => { $('#handbtn').setAttribute('aria-pressed', String(v)); if (!v) userTook = false; },
+};
+$('#handbtn').addEventListener('click', () => HandCtl.toggle(HAND));
+new MutationObserver(() => HandCtl.mount($('#feat').open ? $('#feat') : document.body)).observe($('#feat'), {attributes:true, attributeFilter:['open']});
 applyLang(); cycle(); pull();
 setInterval(() => { if (!document.hidden) pull(); }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) pull(); });

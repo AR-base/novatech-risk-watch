@@ -52,6 +52,17 @@ FR = {
  'IT & cyber':'IT & cyber', 'Legal & data':'Juridique & données', 'Suppliers':'Fournisseurs', 'People':'RH', 'Governance':'Gouvernance', 'Finance':'Finance', 'Tools & sites':'Outils & sites',
 }
 FR.update({
+ 'Hand control':'Contrôle à la main', 'Turn off':'Arrêter', 'How to':'Mode d’emploi',
+ 'Point with your index finger. Pinch thumb and index to click. Close your fist to go back. Point at the top or bottom edge to scroll.':'Pointez avec l’index. Pincez pouce et index pour cliquer. Fermez le poing pour revenir. Pointez le bord haut ou bas pour défiler.',
+ 'Starting the camera…':'Démarrage de la caméra…', 'Allow the camera when the browser asks. The video stays on this device.':'Autorisez la caméra quand le navigateur le demande. La vidéo reste sur cet appareil.',
+ 'Loading hand tracking…':'Chargement du suivi de la main…', 'The first time takes a few seconds.':'La première fois prend quelques secondes.',
+ 'Hand control is on':'Contrôle à la main activé', 'Show your hand to the camera. Pinch to click, fist to go back.':'Montrez votre main à la caméra. Pincez pour cliquer, poing pour revenir.',
+ 'Camera permission was refused. Allow the camera for this site in the address bar, then try again.':'L’accès à la caméra a été refusé. Autorisez la caméra pour ce site dans la barre d’adresse, puis réessayez.',
+ 'No camera was found on this device.':'Aucune caméra trouvée sur cet appareil.', 'The camera is used by another app. Close it and try again.':'La caméra est utilisée par une autre application. Fermez-la et réessayez.',
+ 'This browser cannot use the camera here.':'Ce navigateur ne peut pas utiliser la caméra ici.', 'Hand tracking could not load. It needs an internet connection the first time.':'Le suivi de la main n’a pas pu se charger. Il faut une connexion internet la première fois.',
+ 'Hand control is off':'Contrôle à la main désactivé',
+})
+FR.update({
  'Search the risks':'Rechercher un risque', 'Search':'Rechercher', 'Home':'Accueil', 'Right now':'En ce moment', 'Dossier figures':'Chiffres du dossier', 'Live team data':'Données de l’équipe en direct',
  'The sixteen NOVATECH risks':'Les seize risques de NOVATECH', "Ranked by today's score, most dangerous first. Select a poster to open it.":'Classés par score du jour, le plus dangereux en premier. Sélectionnez une affiche pour l’ouvrir.',
  'No risk matches that search.':'Aucun risque ne correspond à cette recherche.', 'Matching risks are lit up.':'Les risques correspondants sont allumés.',
@@ -72,6 +83,7 @@ FR.update({
 fr = {}
 fr.update(phr); fr.update(site_fr); fr.update(FR); fr['__en'] = EN
 src = open(B + 'story.src.html', encoding='utf-8').read()
+src = src.replace('__HANDCTL__', open(B + 'handctl.js', encoding='utf-8').read())
 src = src.replace('__POSTERS__', open(B + 'posters.js', encoding='utf-8').read())
 out = src.replace('__DATA__', json.dumps(data, ensure_ascii=False)).replace('__FR__', json.dumps(fr, ensure_ascii=False))
 open(B + 'story.html', 'w', encoding='utf-8').write(out)
