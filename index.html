@@ -3231,7 +3231,7 @@ function posterRow(){
   PW.node = el('section', {class:'panel pwall-panel', 'aria-labelledby':'pw-h'},
     el('div', {class:'panel-h'}, el('div', null, el('h2', {id:'pw-h', text:'The sixteen, as they look'}),
       el('p', {class:'hint', text:'Ranked by today’s score, most dangerous first. Point at a poster to see it; select it to open the risk.'})),
-      el('a', {class:'btn', href:'story.html', target:'_self'}, 'Open the story site')),
+      el('a', {class:'btn', href:'story/', target:'_self'}, 'Open the story site')),
     wall);
   return PW.node;
 }
@@ -3270,7 +3270,7 @@ function buildSidebar(){
   });
   const promo = el('div', {class:'side-card'}, el('b', {text:'See every risk as a poster'}),
     el('p', {text:'The story site shows what each risk looks like, with the same live numbers.'}),
-    el('a', {class:'btn primary', href:'story.html'}, 'Open the story site'));
+    el('a', {class:'btn primary', href:'story/'}, 'Open the story site'));
   const side = el('aside', {class:'sidebar', 'aria-label':'NOVATECH Risk Watch'}, brand, tabsNav, promo);
   document.body.prepend(side);
   const top = document.querySelector('.top .top-right');

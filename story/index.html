@@ -1,0 +1,863 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOVATECH Risk Watch</title>
+<meta name="description" content="The sixteen NOVATECH risks as a poster wall: see what each risk looks like, how it is contained and what every hour costs, with live numbers from the team dashboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#0D0A0A; --panel:#171212; --panel-2:#211919; --line:rgba(255,240,230,.12); --bone:#F4EDE4; --muted:#A79B93; --crimson:#E0182F; --ember:#6B0C17;
+  --crit:#FF3B4E; --high:#FF9A2E; --mod:#F2C230; --low:#3DD07A;
+  --f-display:"Anton","Impact","Arial Narrow Bold",sans-serif; --f-body:"Archivo",system-ui,sans-serif;
+  --nav:200px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;background:var(--night)}
+body{margin:0;color:var(--bone);font:400 16.5px/1.55 var(--f-body);-webkit-font-smoothing:antialiased;
+  background:radial-gradient(1200px 700px at 70% -10%,rgba(224,24,47,.22),transparent 60%),radial-gradient(900px 600px at 0% 100%,rgba(107,12,23,.35),transparent 60%),var(--night);min-height:100vh}
+a{color:inherit}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--crimson);outline-offset:3px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* chrome */
+.top{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:var(--nav) 1fr auto;align-items:center;gap:16px;padding:14px 28px;background:linear-gradient(180deg,rgba(13,10,10,.92),rgba(13,10,10,.6) 70%,transparent);backdrop-filter:blur(6px)}
+.search{display:flex;align-items:center;gap:8px;color:var(--muted);border-bottom:1px solid var(--line);padding:4px 2px;max-width:180px}
+.search input{all:unset;width:100%;font:500 14px var(--f-body);color:var(--bone)}
+.search input::placeholder{color:var(--muted)}
+.logo{justify-self:center;font:400 34px/1 var(--f-display);letter-spacing:.08em;color:var(--crimson);text-decoration:none;text-shadow:0 0 30px rgba(224,24,47,.35)}
+.right{display:flex;align-items:center;gap:12px}
+.handbtn{display:inline-flex;align-items:center;gap:7px;cursor:pointer;font:700 13px var(--f-body);color:var(--bone);background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:999px;padding:7px 12px}
+.handbtn:hover{background:rgba(255,255,255,.15)}
+.handbtn[aria-pressed="true"]{background:var(--crimson);border-color:var(--crimson)}
+.strip.hand-hover{outline-offset:-3px!important}
+@media (max-width:860px){.handbtn span{display:none}}
+.lang{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+.lang button{all:unset;cursor:pointer;font:700 12.5px var(--f-body);padding:6px 11px;color:var(--muted)}
+.lang button[aria-pressed="true"]{background:var(--bone);color:var(--night)}
+.lang button:focus-visible{outline:2px solid var(--crimson);outline-offset:-2px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font:700 14.5px var(--f-body);text-decoration:none;border:0;border-radius:6px;padding:11px 18px;cursor:pointer;background:var(--crimson);color:#fff;transition:filter .15s,transform .15s}
+.btn:hover{filter:brightness(1.12)}
+.btn:active{transform:scale(.98)}
+.btn.ghost{background:rgba(255,255,255,.1);color:var(--bone)}
+.btn.ghost:hover{background:rgba(255,255,255,.18)}
+.btn svg{flex:none}
+.shell{display:grid;grid-template-columns:var(--nav) minmax(0,1fr);padding:0 28px}
+.side{position:sticky;top:76px;align-self:start;height:calc(100vh - 96px);display:flex;flex-direction:column;gap:6px;padding-top:24px}
+.side a{display:block;text-decoration:none;font:700 13px var(--f-body);letter-spacing:.06em;color:var(--muted);padding:7px 0;transition:color .2s}
+.side a:hover{color:var(--bone)}
+.side a[aria-current="true"]{color:var(--bone)}
+.side a[aria-current="true"]::before{content:"";display:inline-block;width:14px;height:2px;background:var(--crimson);vertical-align:middle;margin-right:8px}
+.side .live{margin-top:auto;margin-bottom:10px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);line-height:1.35}
+.side .live i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.side .live.on i{background:var(--low);box-shadow:0 0 0 4px rgba(61,208,122,.18);animation:blink 2s infinite}
+@keyframes blink{50%{opacity:.45}}
+main{min-width:0}
+
+/* poster wall: the opening scene */
+.wall-scene{padding:8px 0 24px}
+.wall{display:flex;gap:6px;height:min(66vh,620px);min-height:420px}
+.strip{all:unset;box-sizing:border-box;position:relative;flex:1 1 0;min-width:0;border-radius:6px;overflow:hidden;cursor:pointer;background:#000;transition:flex-grow .7s cubic-bezier(.2,.8,.2,1),filter .5s,opacity .4s;filter:grayscale(.55) brightness(.62)}
+.strip .art,.strip .art svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.strip.on{flex-grow:7;filter:none}
+.wall:hover .strip:not(.on){filter:grayscale(.7) brightness(.5)}
+.strip:focus-visible{outline:3px solid var(--crimson);outline-offset:2px}
+.strip .lbl{position:absolute;left:50%;bottom:16px;transform:translateX(-50%) rotate(180deg);writing-mode:vertical-rl;font:400 15px var(--f-display);letter-spacing:.08em;color:#fff;white-space:nowrap;text-shadow:0 1px 6px #000;transition:opacity .3s}
+.strip.on .lbl{opacity:0}
+.strip .lvl{position:absolute;left:0;right:0;top:0;height:4px;background:var(--c)}
+.strip .info{position:absolute;left:0;right:0;bottom:0;padding:22px 26px 22px;opacity:0;transform:translateY(12px);transition:opacity .4s .25s,transform .4s .25s;background:linear-gradient(180deg,transparent,rgba(0,0,0,.85) 40%)}
+.strip.on .info{opacity:1;transform:none}
+.strip.dim{opacity:.18}
+.info .k{display:block;font:800 12.5px var(--f-body);letter-spacing:.14em;color:var(--c)}
+.info h2{margin:4px 0 6px;font:400 clamp(40px,4.4vw,68px)/.92 var(--f-display);text-transform:uppercase}
+.info p{margin:0 0 12px;max-width:52ch;color:#dcd2ca;font-size:15px}
+.info .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:7px;font:700 12.5px var(--f-body);padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.12)}
+.pill i{width:8px;height:8px;border-radius:50%;background:var(--c)}
+.wall-foot{display:flex;justify-content:space-between;align-items:baseline;gap:20px;flex-wrap:wrap;margin-top:16px}
+.wall-foot h1{margin:0;font:400 clamp(30px,3.2vw,46px)/1 var(--f-display);letter-spacing:.01em;text-transform:uppercase}
+.sortnote{margin:0;color:var(--muted);font-size:14px;max-width:62ch}
+
+/* sections */
+.sec{padding:72px 0 24px;border-top:1px solid var(--line);margin-top:48px}
+.sec h2.t{margin:0 0 6px;font:400 clamp(44px,6vw,92px)/.9 var(--f-display);text-transform:uppercase}
+.sec .lead{margin:0 0 28px;color:var(--muted);max-width:62ch}
+.now{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:10px;overflow:hidden;background:rgba(255,255,255,.02)}
+.now div{padding:20px 22px;border-left:1px solid var(--line)}
+.now div:first-child{border-left:0}
+.now b{display:block;font:400 clamp(40px,4.4vw,64px)/1 var(--f-display);font-variant-numeric:tabular-nums}
+.now span{color:var(--muted);font-size:14px}
+.now .latest b{font:700 17px/1.3 var(--f-body);margin-bottom:4px}
+.contain{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:40px;align-items:center}
+.player{position:relative;background:#060404;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.player .scr{position:relative;aspect-ratio:4/3.4;background:radial-gradient(circle at 50% 30%,#3A0710,#0b0707 70%)}
+.player .play{all:unset;cursor:pointer;position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.25)}
+.player .play[hidden]{display:none}
+.player .play i{width:78px;height:78px;border-radius:50%;background:var(--crimson);display:grid;place-items:center;box-shadow:0 0 0 12px rgba(224,24,47,.22)}
+.player .play:focus-visible i{outline:3px solid #fff;outline-offset:4px}
+.player figcaption{padding:12px 16px;font-size:14px;color:var(--muted);border-top:1px solid var(--line)}
+.phone{position:absolute;left:50%;top:7%;transform:translateX(-50%);width:50%;height:93%;border-radius:24px 24px 0 0;background:#0a0808;border:3px solid #2a2321;border-bottom:0;padding:18px 9px 8px;display:flex;flex-direction:column;gap:7px;overflow:hidden}
+.note{background:#F4EDE4;color:#1b1414;border-radius:10px;padding:7px 9px;font-size:11px;line-height:1.28;opacity:0;transform:translateY(-10px);transition:opacity .35s,transform .35s}
+.note.on{opacity:1;transform:none}
+.note b{display:block;font-size:11.5px}
+.note .acts{display:flex;gap:4px;margin-top:5px}
+.note .acts span{flex:1;text-align:center;border-radius:6px;background:#e3dbcf;padding:3px 0;font-weight:700;font-size:10px}
+.note .acts span.hit{background:var(--crimson);color:#fff}
+.note.red{box-shadow:inset 4px 0 0 var(--crit)} .note.ok{box-shadow:inset 4px 0 0 var(--low)}
+.steps{list-style:none;margin:0;padding:0;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:54px 1fr;padding:14px 0;border-top:1px solid var(--line)}
+.steps li::before{content:counter(s);font:400 40px/1 var(--f-display);color:rgba(255,240,230,.18);transition:color .3s}
+.steps li.now::before{color:var(--crimson)}
+.steps b{display:block;font-size:17.5px;margin-bottom:2px}
+.steps p{margin:0;color:var(--muted);font-size:15px}
+.cost{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,300px);gap:40px;align-items:center}
+.calc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px 24px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 18px}
+.chip{all:unset;cursor:pointer;border:1px solid var(--line);padding:6px 11px;font:700 13px var(--f-body);border-radius:999px;color:#dcd2ca}
+.chip[aria-pressed="true"]{background:var(--bone);color:var(--night);border-color:var(--bone)}
+.chip:focus-visible{outline:2px solid var(--crimson);outline-offset:2px}
+.calc label{display:block;font-weight:700;font-size:15px}
+.calc .hrs{font:400 40px/1 var(--f-display);color:var(--crimson);margin-left:8px}
+input[type=range]{width:100%;accent-color:var(--crimson);margin:10px 0 4px;height:28px}
+.calc .scale{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)}
+.out{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:18px;border-top:1px solid var(--line)}
+.out div{padding:14px 12px 4px 0}
+.out div+div{border-left:1px solid var(--line);padding-left:14px}
+.out span{font-size:13px;color:var(--muted);display:block;min-height:2.6em;line-height:1.3}
+.out b{font:400 clamp(28px,3vw,42px)/1 var(--f-display);font-variant-numeric:tabular-nums}
+.out .d b{color:var(--crit)} .out .a b{color:var(--low)}
+.calc .per{margin:14px 0 0;font-size:14.5px;color:#dcd2ca}
+.fill{position:relative;aspect-ratio:2/3;border-radius:10px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.5)}
+.fill .art,.fill .art svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.fill .lvl{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(180deg,rgba(224,24,47,.55),rgba(160,8,25,.92));mix-blend-mode:multiply;transition:height .45s cubic-bezier(.2,.8,.2,1)}
+.fill .lvl::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:#ff5a6e;box-shadow:0 0 14px #ff5a6e}
+.fill .pc{position:absolute;right:12px;top:52px;font:400 30px var(--f-display);text-shadow:0 2px 10px #000}
+.crew{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px}
+.crew article{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.crew article.ceo{border-color:var(--crimson)}
+.crew .thumbs{display:flex;height:130px;gap:2px}
+.crew .thumbs button{all:unset;cursor:pointer;position:relative;flex:1;overflow:hidden;filter:brightness(.85);transition:filter .2s}
+.crew .thumbs button:hover,.crew .thumbs button:focus-visible{filter:none}
+.crew .thumbs button:focus-visible{outline:2px solid var(--crimson);outline-offset:-2px}
+.crew .thumbs svg{position:absolute;inset:0;width:100%;height:100%}
+.crew .who{padding:12px 12px 14px}
+.crew h3{margin:0;font:400 24px/1 var(--f-display);text-transform:uppercase}
+.crew p{margin:4px 0 0;color:var(--muted);font-size:13px;line-height:1.35}
+.crew .ceo-t{color:var(--crimson);font-weight:700}
+.end{display:flex;flex-direction:column;align-items:center;text-align:center;gap:18px;padding:90px 0 70px}
+.end h2{font:400 clamp(50px,7vw,110px)/.9 var(--f-display);text-transform:uppercase;margin:0}
+.end .btn{font-size:17px;padding:15px 26px}
+footer{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;padding:22px 28px 30px calc(28px + var(--nav));border-top:1px solid var(--line);font-size:13px;color:var(--muted)}
+
+/* featured risk: full-screen cinematic card, with a floating gallery mode */
+dialog{position:fixed;inset:0;width:100vw;height:100vh;max-width:none;max-height:none;margin:0;padding:0;border:0;background:var(--night);color:var(--bone)}
+dialog::backdrop{background:#000}
+.feat{position:relative;width:100%;height:100%;overflow:hidden}
+.feat .bg{position:absolute;inset:-6%;filter:blur(24px) saturate(1.2) brightness(.55);transform:scale(1.08)}
+.feat .bg svg{width:100%;height:100%}
+.feat .shade{position:absolute;inset:0;background:linear-gradient(90deg,rgba(13,10,10,.96) 0%,rgba(13,10,10,.75) 45%,rgba(13,10,10,.2) 100%)}
+.feat .x{all:unset;cursor:pointer;position:absolute;right:22px;top:18px;z-index:6;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.1);font-size:26px}
+.feat .x:hover{background:rgba(255,255,255,.2)}
+.feat .x:focus-visible{outline:3px solid var(--crimson)}
+.feat .body{position:relative;z-index:2;height:100%;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:40px;align-items:center;padding:60px 6vw;transition:opacity .3s}
+.feat .k{margin:0;font:800 13px var(--f-body);letter-spacing:.14em;color:var(--c)}
+.feat h2{margin:8px 0 14px;font:400 clamp(56px,8vw,128px)/.88 var(--f-display);text-transform:uppercase}
+.feat .facts{display:flex;gap:26px;flex-wrap:wrap;margin:0 0 16px;font-size:14px;color:var(--muted)}
+.feat .facts b{display:block;color:var(--bone);font:400 30px/1 var(--f-display)}
+.feat p.syn{margin:0 0 22px;max-width:56ch;font-size:17px;color:#e7ddd5}
+.feat .acts{display:flex;gap:10px;flex-wrap:wrap}
+.feat .card{justify-self:center;width:min(100%,360px);aspect-ratio:2/3;border-radius:12px;overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08)}
+.feat .card svg{width:100%;height:100%;display:block}
+.feat .watch{position:absolute;z-index:4;inset:0;display:none;place-items:center;background:rgba(5,3,3,.86)}
+.feat.watching .watch{display:grid}
+.feat .watch .player{width:min(440px,90vw)}
+.gal{position:absolute;inset:0;z-index:3;display:none}
+.feat.gallery .gal{display:block}
+.feat.gallery .body{opacity:0;pointer-events:none}
+.gal .word{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:400 clamp(60px,9vw,150px)/1 var(--f-display);text-transform:uppercase;color:rgba(255,255,255,.9);pointer-events:none;text-align:center;margin:0}
+.gal .tile{position:absolute;width:clamp(200px,20vw,280px);background:rgba(23,18,18,.92);border:1px solid var(--line);border-radius:10px;padding:14px 16px;box-shadow:0 20px 50px rgba(0,0,0,.5);animation:drift var(--d,18s) ease-in-out infinite alternate}
+.gal .tile h3{margin:0 0 6px;font:400 22px/1 var(--f-display);text-transform:uppercase;color:var(--c,var(--crimson))}
+.gal .tile p,.gal .tile li{margin:0;font-size:14px;color:#e2d8d0}
+.gal .tile ol{margin:0;padding-left:18px}
+.gal .tile.pic{padding:0;overflow:hidden;width:clamp(110px,10vw,160px);aspect-ratio:2/3}
+.gal .tile.pic svg{width:100%;height:100%;display:block}
+.gal .back{position:absolute;left:24px;top:18px;z-index:5}
+@keyframes drift{from{transform:translate(0,0) rotate(var(--r0,0deg))}to{transform:translate(var(--dx,14px),var(--dy,-18px)) rotate(var(--r1,0deg))}}
+
+@media (max-width:1100px){.crew{grid-template-columns:repeat(4,minmax(0,1fr))}.now{grid-template-columns:repeat(2,minmax(0,1fr))}.now div:nth-child(3){border-left:0}.now div:nth-child(n+3){border-top:1px solid var(--line)}}
+@media (max-width:860px){
+  :root{--nav:0px}
+  .top{grid-template-columns:1fr auto;padding:12px 16px}
+  .search{display:none}
+  .logo{justify-self:start;font-size:28px}
+  .right .btn{padding:9px 12px;font-size:13px}
+  .shell{grid-template-columns:minmax(0,1fr);padding:0 16px}
+  .side{display:none}
+  .wall{height:auto;min-height:0;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:6px}
+  .strip,.strip.on{flex:0 0 74vw;height:min(111vw,520px);filter:none;scroll-snap-align:center}
+  .strip .lbl{display:none}
+  .strip .info{opacity:1;transform:none;padding:16px}
+  .info h2{font-size:36px}
+  .contain,.cost{grid-template-columns:minmax(0,1fr)}
+  .cost .fill{max-width:260px;justify-self:center;width:100%}
+  .crew{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .now{grid-template-columns:minmax(0,1fr)}
+  .now div{border-left:0;border-top:1px solid var(--line)}
+  .now div:first-child{border-top:0}
+  .feat .body{grid-template-columns:minmax(0,1fr);padding:70px 20px 30px;overflow:auto;align-content:start}
+  .feat .card{display:none}
+  .gal{overflow:auto;padding:70px 0 20px}
+  .gal .tile{position:relative;left:auto!important;top:auto!important;width:auto;margin:10px 16px;animation:none}
+  .gal .word{position:relative;left:auto;top:auto;transform:none;display:block;margin:0 16px 8px;text-align:left}
+  .gal .tile.pic{display:none}
+  footer{padding:20px 16px}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .strip,.strip .info,.fill .lvl{transition:none}
+  .gal .tile,.side .live.on i{animation:none}
+}
+</style>
+</head>
+<body>
+<header class="top">
+  <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span class="sr" data-t="Search the risks">Search the risks</span><input id="q" type="search" autocomplete="off" maxlength="40" placeholder="Search" data-tp="Search"></label>
+  <a class="logo" href="#home" aria-label="NOVATECH Risk Watch">NOVATECH</a>
+  <div class="right">
+    <button class="handbtn" id="handbtn" type="button" aria-pressed="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12m0-6.5v-1a1.5 1.5 0 0 1 3 0V12m0-6a1.5 1.5 0 0 1 3 0v6m0-3a1.5 1.5 0 0 1 3 0v5a7 7 0 0 1-7 7h-1a7 7 0 0 1-5.6-2.8L4.2 15a1.5 1.5 0 0 1 2.3-2L8 14.5"/></svg><span data-t="Hand control">Hand control</span></button>
+    <div class="lang" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="fr" aria-pressed="false">FR</button></div>
+    <a class="btn" href="../" data-t="Open the dashboard">Open the dashboard</a>
+  </div>
+</header>
+<div class="shell">
+  <nav class="side" aria-label="Sections">
+    <a href="#home" data-t="Home">Home</a>
+    <a href="#now" data-t="Right now">Right now</a>
+    <a href="#contain" data-t="Contain it">Contain it</a>
+    <a href="#cost" data-t="Every hour counts">Every hour counts</a>
+    <a href="#team" data-t="The team">The team</a>
+    <p class="live" id="live"><i></i><span data-t="Dossier figures">Dossier figures</span></p>
+  </nav>
+  <main>
+    <section class="wall-scene" id="home" aria-labelledby="wall-h">
+      <div class="wall" id="wall" role="list"></div>
+      <div class="wall-foot">
+        <h1 id="wall-h" data-t="The sixteen NOVATECH risks">The sixteen NOVATECH risks</h1>
+        <p class="sortnote" id="sortnote">Ranked by today's score, most dangerous first. Select a poster to open it.</p>
+      </div>
+    </section>
+
+    <section class="sec" id="now" aria-labelledby="now-h">
+      <h2 class="t" id="now-h" data-t="Right now">Right now</h2>
+      <p class="lead" data-t="now-lead">NOVATECH grew 35% in two years with 25 new hires, three agencies and more cloud. These are today's numbers from the team dashboard.</p>
+      <div class="now">
+        <div><b id="k-crit">3</b><span data-t="risks are critical right now">risks are critical right now</span></div>
+        <div><b id="k-loss">€2.5M</b><span data-t="expected loss a year at today's progress">expected loss a year at today's progress</span></div>
+        <div><b id="k-alerts">3</b><span data-t="early-warning alerts open">early-warning alerts open</span></div>
+        <div class="latest"><b id="k-last">No change logged yet</b><span id="k-src">Figures from the NOVATECH dossier</span></div>
+      </div>
+    </section>
+
+    <section class="sec" id="contain" aria-labelledby="contain-h">
+      <h2 class="t" id="contain-h" data-t="Contain it">Contain it</h2>
+      <p class="lead" data-t="contain-lead">What happens on the team's phones when a cyberattack is spotted, from the first alert to the incident closed.</p>
+      <div class="contain">
+        <figure class="player" style="margin:0" id="player-main"></figure>
+        <ol class="steps" id="steps">
+          <li><div><b data-t="An indicator crosses its threshold">An indicator crosses its threshold</b><p data-t="step1">The dashboard alerts the people responsible on their phones before the risk turns into an incident.</p></div></li>
+          <li><div><b data-t="The CEO approves">The CEO approves</b><p data-t="step2">Containing can stop services and lock laptops, so the request goes to the CEO’s phone with what is at stake.</p></div></li>
+          <li><div><b data-t="Everyone gets their task">Everyone gets their task</b><p data-t="step3">Each step of the playbook goes to the person who owns it. Their Done button ticks it on every screen.</p></div></li>
+          <li><div><b data-t="The incident is closed">The incident is closed</b><p data-t="step4b">For a cyberattack the demo laptop isolates itself; when every step is done the loss avoided is secured.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="sec" id="cost" aria-labelledby="cost-h">
+      <h2 class="t" id="cost-h" data-t="Every hour counts">Every hour counts</h2>
+      <p class="lead" data-t="cost-lead">Drag the slider: the later an incident is contained, the more of its worst case is already lost.</p>
+      <div class="cost">
+        <div class="calc">
+          <label id="rk-l" data-t="Pick an incident">Pick an incident</label>
+          <div class="chips" id="chips" role="group" aria-labelledby="rk-l"></div>
+          <label for="hrs"><span data-t="Contained after">Contained after</span><span class="hrs" id="hrs-v">2 h</span></label>
+          <input type="range" id="hrs" min="0" max="72" step="0.5" value="2">
+          <div class="scale"><span data-t="at the alert">at the alert</span><span data-t="1 day">1 day</span><span data-t="2 days">2 days</span><span data-t="3 days">3 days</span></div>
+          <div class="out" aria-live="polite">
+            <div class="d"><span data-t="Damage already done">Damage already done</span><b id="o-d">€0</b></div>
+            <div class="a"><span data-t="Loss avoided by containing">Loss avoided by containing</span><b id="o-a">€0</b></div>
+            <div><span data-t="Worst case if nothing is done">Worst case if nothing is done</span><b id="o-w">€0</b></div>
+          </div>
+          <p class="per" id="o-per"></p>
+        </div>
+        <div class="fill" id="fill" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="sec" id="team" aria-labelledby="team-h">
+      <h2 class="t" id="team-h" data-t="The team">The team</h2>
+      <p class="lead" data-t="team-lead">Seven analysts, one slice of the radar each. Select a poster to open the risk.</p>
+      <div class="crew" id="crew"></div>
+    </section>
+
+    <section class="end" aria-labelledby="end-h">
+      <h2 id="end-h" data-t="Watch it live">Watch it live</h2>
+      <a class="btn" href="../" data-t="Open the dashboard">Open the dashboard</a>
+    </section>
+  </main>
+</div>
+<footer>
+  <span data-t="foot1">ESAIP Risk Management, NOVATECH “Risk Detective” case. Anish, Mereena, Sudheer, Fatah, Rambabu, Krishna, Niranjan.</span>
+  <a href="https://github.com/AR-base/novatech-risk-watch" data-t="Source on GitHub">Source on GitHub</a>
+</footer>
+
+<dialog id="feat" aria-labelledby="f-h"><div class="feat" id="feat-in"></div></dialog>
+
+<script>
+/* ───────────── Hand control ─────────────
+   Move the page with your hand through the laptop camera (MediaPipe Hand Landmarker, running in this browser).
+   Index fingertip = cursor · pinch thumb and index = click · closed fist = back · point at the top or bottom edge
+   to scroll. The video never leaves the device: frames go to the model in the page and nowhere else.
+   Each page passes hooks: t (translate), onMove(x, y, el), onBack(), and optionally onFrame(hand). */
+const HandCtl = (() => {
+  const VER = '0.10.14';
+  const LIB = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VER}/vision_bundle.mjs`;
+  const WASM = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VER}/wasm`;
+  const MODEL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+  const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+  let o = {}, on = false, starting = false, stream = null, model = null, raf = 0, lastT = -1;
+  let ui = null, cur = {x:.5, y:.5}, seen = false, pinching = false, lastClick = 0, fistSince = 0, lastBack = 0, hoverEl = null, lostAt = 0;
+  const T = s => (o.t ? o.t(s) : s);
+  const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+
+  function css(){
+    if (document.getElementById('hand-css')) return;
+    const st = document.createElement('style'); st.id = 'hand-css';
+    st.textContent = `
+.hand-cursor{position:fixed;z-index:2147483000;left:0;top:0;width:34px;height:34px;margin:-17px 0 0 -17px;border-radius:50%;border:3px solid #E0182F;box-shadow:0 0 0 3px rgba(255,255,255,.75),0 0 24px rgba(224,24,47,.7);pointer-events:none;transition:width .12s,height .12s,margin .12s,background .12s,opacity .3s;opacity:0}
+.hand-cursor.on{opacity:1}
+.hand-cursor.pinch{width:22px;height:22px;margin:-11px 0 0 -11px;background:#E0182F}
+.hand-cursor.lost{opacity:.25}
+.hand-cam{position:fixed;z-index:2147482999;right:16px;bottom:16px;width:220px;border-radius:14px;overflow:hidden;background:#0b0808;color:#F4EDE4;border:1px solid rgba(255,240,230,.18);box-shadow:0 20px 50px rgba(0,0,0,.55);font:500 12.5px/1.35 Archivo,system-ui,sans-serif}
+.hand-cam .v{position:relative;aspect-ratio:4/3;background:#000}
+.hand-cam video,.hand-cam canvas{position:absolute;inset:0;width:100%;height:100%;transform:scaleX(-1);object-fit:cover}
+.hand-cam video{opacity:.55}
+.hand-cam .s{padding:8px 10px}
+.hand-cam .s b{display:block;font-size:13px;margin-bottom:2px}
+.hand-cam .row{display:flex;gap:6px;padding:0 10px 10px}
+.hand-cam button{all:unset;cursor:pointer;flex:1;text-align:center;padding:6px 8px;border-radius:7px;background:rgba(255,255,255,.12);font-weight:700}
+.hand-cam button:hover{background:rgba(255,255,255,.2)}
+.hand-cam button:focus-visible{outline:2px solid #E0182F}
+.hand-cam .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3DD07A;margin-right:6px;box-shadow:0 0 8px #3DD07A}
+.hand-cam.err .dot{background:#FF9A2E;box-shadow:none}
+.hand-hover{outline:3px solid rgba(224,24,47,.9)!important;outline-offset:3px!important}
+@media (max-width:600px){.hand-cam{width:160px}}`;
+    document.head.append(st);
+  }
+  function build(){
+    css();
+    const cursor = document.createElement('div'); cursor.className = 'hand-cursor'; cursor.setAttribute('aria-hidden', 'true');
+    const box = document.createElement('section'); box.className = 'hand-cam'; box.setAttribute('aria-label', T('Hand control'));
+    box.innerHTML = '<div class="v"><video playsinline muted></video><canvas width="320" height="240"></canvas></div><div class="s" role="status" aria-live="polite"><b></b><span></span></div><div class="row"><button type="button" data-a="help"></button><button type="button" data-a="stop"></button></div>';
+    box.querySelector('[data-a="stop"]').textContent = T('Turn off');
+    box.querySelector('[data-a="help"]').textContent = T('How to');
+    box.querySelector('[data-a="stop"]').addEventListener('click', stop);
+    box.querySelector('[data-a="help"]').addEventListener('click', () => status(T('Hand control'), T('Point with your index finger. Pinch thumb and index to click. Close your fist to go back. Point at the top or bottom edge to scroll.')));
+    document.body.append(cursor, box);
+    ui = {cursor, box, video:box.querySelector('video'), canvas:box.querySelector('canvas'), b:box.querySelector('.s b'), span:box.querySelector('.s span')};
+  }
+  function status(title, text, err){ if (!ui) return; ui.b.textContent = title; ui.span.textContent = text; ui.box.classList.toggle('err', !!err); if (!err && !ui.b.querySelector('.dot')) { const i = document.createElement('i'); i.className = 'dot'; ui.b.prepend(i); } }
+
+  async function start(opts){
+    if (on || starting) return;
+    o = opts || o; starting = true;
+    if (!ui) build(); ui.box.hidden = false;
+    status(T('Starting the camera…'), T('Allow the camera when the browser asks. The video stays on this device.'));
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw Object.assign(new Error('nocam'), {name:'NoCam'});
+      stream = await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640}, height:{ideal:480}, facingMode:'user'}, audio:false});
+      ui.video.srcObject = stream; await ui.video.play();
+      status(T('Loading hand tracking…'), T('The first time takes a few seconds.'));
+      if (!model) {
+        const lib = await import(LIB);
+        const files = await lib.FilesetResolver.forVisionTasks(WASM);
+        const make = delegate => lib.HandLandmarker.createFromOptions(files, {baseOptions:{modelAssetPath:MODEL, delegate}, runningMode:'VIDEO', numHands:1, minHandDetectionConfidence:.6, minTrackingConfidence:.5});
+        try { model = await make('GPU'); } catch (e) { model = await make('CPU'); }
+      }
+      on = true; starting = false; lastT = -1; seen = false;
+      ui.cursor.classList.add('on');
+      status(T('Hand control is on'), T('Show your hand to the camera. Pinch to click, fist to go back.'));
+      if (o.onState) o.onState(true);
+      loop();
+    } catch (e) {
+      starting = false; release();
+      const n = e && e.name;
+      const msg = n === 'NotAllowedError' || n === 'SecurityError' ? T('Camera permission was refused. Allow the camera for this site in the address bar, then try again.')
+        : n === 'NotFoundError' || n === 'OverconstrainedError' ? T('No camera was found on this device.')
+        : n === 'NotReadableError' ? T('The camera is used by another app. Close it and try again.')
+        : n === 'NoCam' ? T('This browser cannot use the camera here.')
+        : T('Hand tracking could not load. It needs an internet connection the first time.');
+      status(T('Hand control is off'), msg, true);
+      if (o.onState) o.onState(false);
+    }
+  }
+  function release(){ if (stream) { stream.getTracks().forEach(tr => tr.stop()); stream = null; } if (ui) ui.video.srcObject = null; }
+  function stop(){
+    on = false; starting = false; cancelAnimationFrame(raf); release(); setHover(null);
+    if (ui) { ui.cursor.classList.remove('on'); ui.box.hidden = true; }
+    if (o.onState) o.onState(false);
+  }
+  const toggle = opts => (on || starting ? stop() : start(opts));
+
+  function loop(){
+    if (!on) return;
+    raf = requestAnimationFrame(loop);
+    const v = ui.video; if (v.readyState < 2 || v.currentTime === lastT) return;
+    lastT = v.currentTime;
+    let res; try { res = model.detectForVideo(v, performance.now()); } catch (e) { return; }
+    const hand = res && res.landmarks && res.landmarks[0];
+    draw(hand);
+    if (!hand || hand.length < 21) { if (seen && !lostAt) lostAt = performance.now(); if (lostAt && performance.now() - lostAt > 400) { ui.cursor.classList.add('lost'); setHover(null); } return; }
+    lostAt = 0; seen = true; ui.cursor.classList.remove('lost');
+    handle(hand);
+  }
+  function draw(hand){
+    const c = ui.canvas, g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
+    if (!hand) return;
+    g.strokeStyle = '#E0182F'; g.lineWidth = 3; g.beginPath();
+    BONES.forEach(([a, b]) => { g.moveTo(hand[a].x * c.width, hand[a].y * c.height); g.lineTo(hand[b].x * c.width, hand[b].y * c.height); }); g.stroke();
+    g.fillStyle = '#F4EDE4'; hand.forEach(p => { g.beginPath(); g.arc(p.x * c.width, p.y * c.height, 3, 0, 7); g.fill(); });
+  }
+  function setHover(el){
+    if (el === hoverEl) return;
+    if (hoverEl) hoverEl.classList.remove('hand-hover');
+    hoverEl = el; if (el) el.classList.add('hand-hover');
+  }
+  const CLICKABLE = 'button, a[href], [role="button"], [role="option"], [role="tab"], summary, label, select, .strip, .pstrip';
+  function handle(h){
+    const s = d(h[0], h[9]) || .1;
+    /* the centre 70 % of the camera covers the whole screen, mirrored like a mirror */
+    const nx = Math.min(1, Math.max(0, ((1 - h[8].x) - .15) / .7)), ny = Math.min(1, Math.max(0, (h[8].y - .12) / .66));
+    const k = .35; cur.x += (nx - cur.x) * k; cur.y += (ny - cur.y) * k;
+    const px = cur.x * innerWidth, py = cur.y * innerHeight;
+    ui.cursor.style.transform = `translate(${px.toFixed(0)}px,${py.toFixed(0)}px)`;
+    const under = document.elementFromPoint(px, py);
+    const target = under && !ui.box.contains(under) ? under.closest(CLICKABLE) : null;
+    setHover(target);
+    if (o.onMove) o.onMove(px, py, under, h);
+    /* pinch = click, with hysteresis and a short cooldown */
+    const pr = d(h[4], h[8]) / s, now = performance.now();
+    if (!pinching && pr < .33) { pinching = true; ui.cursor.classList.add('pinch'); if (target && now - lastClick > 650) { lastClick = now; target.click(); if (target.matches('select, input')) target.focus(); } }
+    else if (pinching && pr > .5) { pinching = false; ui.cursor.classList.remove('pinch'); }
+    /* fist held for 0.6 s = back */
+    const tips = [8, 12, 16, 20].reduce((a, i) => a + d(h[i], h[0]), 0) / 4 / s;
+    if (tips < 1.15 && !pinching) { if (!fistSince) fistSince = now; else if (now - fistSince > 600 && now - lastBack > 1300) { lastBack = now; fistSince = 0; if (o.onBack) o.onBack(); } }
+    else fistSince = 0;
+    /* point at the top or bottom edge to scroll */
+    if (!pinching && tips >= 1.15 && (!o.canScroll || o.canScroll())) { if (cur.y < .07) scrollBy(0, -22); else if (cur.y > .93) scrollBy(0, 22); }
+  }
+  /* a modal <dialog> sits in the top layer: move the cursor and camera box into it while it is open */
+  function mount(parent){ if (!ui) return; (parent || document.body).append(ui.cursor, ui.box); }
+  return {start, stop, toggle, mount, isOn:() => on || starting};
+})();
+
+/* ───────────── Risk posters ─────────────
+   One illustrated poster per risk, showing what the risk looks like when it happens. Shared by the story site and the
+   dashboard. Pure SVG built from constant markup (no user data goes in), 300 × 450 portrait, ids prefixed per poster
+   so many can sit on one page. */
+const POSTER_ART = (() => {
+  /* person silhouette: head + shoulders, standing at x,y (feet), height h */
+  const person = (x, y, h, fill, extra = '') => { const s = h / 100;
+    return `<g transform="translate(${x},${y}) scale(${s})" fill="${fill}" ${extra}><circle cx="0" cy="-88" r="11"/><path d="M-17,-74 Q0,-80 17,-74 L21,-40 L14,-40 L13,0 L3,0 L1,-34 L-1,-34 L-3,0 L-13,0 L-14,-40 L-21,-40 Z"/></g>`; };
+  const hood = (x, y, h, fill, rim) => { const s = h / 100;
+    return `<g transform="translate(${x},${y}) scale(${s})" fill="${fill}" ${rim ? `stroke="${rim}" stroke-width="1.6"` : ''}><path d="M0,-104 C-20,-104 -26,-86 -24,-70 C-40,-62 -46,-40 -48,0 L48,0 C46,-40 40,-62 24,-70 C26,-86 20,-104 0,-104 Z"/><path d="M-11,-88 Q0,-96 11,-88 L9,-72 Q0,-66 -9,-72 Z" fill="#000" opacity=".85"/></g>`; };
+  const stars = (cx, cy, r, n, fill, size = 4) => Array.from({length:n}, (_, k) => { const a = k / n * Math.PI * 2 - Math.PI / 2; return `<circle cx="${(cx + Math.cos(a) * r).toFixed(1)}" cy="${(cy + Math.sin(a) * r).toFixed(1)}" r="${size}" fill="${fill}"/>`; }).join('');
+  const rnd = seed => { let x = seed; return () => (x = (x * 9301 + 49297) % 233280) / 233280; };
+  const dust = (seed, n, color, op = .5) => { const R = rnd(seed); return Array.from({length:n}, () => `<circle cx="${(R() * 300).toFixed(0)}" cy="${(R() * 450).toFixed(0)}" r="${(R() * 1.6 + .3).toFixed(1)}" fill="${color}" opacity="${(R() * op).toFixed(2)}"/>`).join(''); };
+  /* each scene: [background top, background bottom, accent, markup(p) where p = id prefix] */
+  return {
+    R1:['#0a1a3a', '#020611', '#4fa8ff', p => `${dust(11, 70, '#bcd9ff', .7)}
+      <circle cx="232" cy="70" r="26" fill="#cfe4ff" opacity=".18"/>
+      <g fill="#c9d8ea"><path d="M60,190 Q60,150 100,150 Q112,112 156,116 Q196,100 214,140 Q252,140 252,176 Q252,206 222,206 L88,206 Q60,206 60,190 Z"/></g>
+      <path d="M150,118 L136,160 L160,160 L140,206" fill="none" stroke="#0a1a3a" stroke-width="7" stroke-linejoin="round"/>
+      <path d="M168,206 L146,252 L170,252 L140,312" fill="none" stroke="#ffd34d" stroke-width="6" stroke-linejoin="round" filter="url(#${p}glow)"/>
+      ${[0, 1, 2].map(k => `<g transform="translate(${70 + k * 58},300)"><rect width="44" height="96" rx="3" fill="#0e1729" stroke="#22324d"/>${[0, 1, 2, 3, 4, 5].map(j => `<rect x="7" y="${10 + j * 14}" width="30" height="6" rx="1" fill="#16233a"/><circle cx="33" cy="${13 + j * 14}" r="2" fill="${(k + j) % 3 ? '#ff3b3b' : '#3a4a63'}"/>`).join('')}</g>`).join('')}`],
+    R2:['#06140c', '#000', '#2bff88', p => { const R = rnd(7); return `${Array.from({length:22}, (_, k) => { const x = 8 + k * 13.5; return Array.from({length:14}, (_, j) => `<text x="${x}" y="${20 + j * 24 + (k % 3) * 9}" fill="#22d36f" opacity="${(R() * .55 + .05).toFixed(2)}" font-family="monospace" font-size="13">${R() > .5 ? 1 : 0}</text>`).join(''); }).join('')}
+      <circle cx="150" cy="200" r="150" fill="url(#${p}spot)"/><circle cx="150" cy="190" r="80" fill="#2bff88" opacity=".12"/>
+      ${hood(150, 450, 290, '#020703', '#2bff88')}
+      <g transform="translate(150,330)" filter="url(#${p}glow)"><rect x="-26" y="-6" width="52" height="40" rx="6" fill="none" stroke="#ff2d4f" stroke-width="5"/><path d="M-16,-6 V-20 A16,16 0 0 1 16,-20 V-6" fill="none" stroke="#ff2d4f" stroke-width="5"/><circle cx="0" cy="12" r="5" fill="#ff2d4f"/><rect x="-2" y="14" width="4" height="10" fill="#ff2d4f"/></g>
+      <text x="150" y="262" text-anchor="middle" font-family="monospace" font-size="12" fill="#ff2d4f" letter-spacing="2">FILES ENCRYPTED</text>`; }],
+    R3:['#1b0f2e', '#06030c', '#ffcc33', p => `${stars(150, 150, 70, 12, '#ffcc33', 5)}
+      <g transform="translate(150,170)"><rect x="-40" y="-26" width="80" height="62" rx="8" fill="#2a1a46" stroke="#ffcc33" stroke-width="4"/><path d="M-24,-26 V-48 A24,24 0 0 1 20,-56" fill="none" stroke="#ffcc33" stroke-width="7" stroke-linecap="round"/><circle cx="0" cy="2" r="7" fill="#ffcc33"/></g>
+      ${[[-70, 300, -18], [-20, 270, 8], [40, 320, -6], [90, 280, 14], [-100, 360, 10], [10, 380, -12], [80, 380, 4]].map(([x, y, r], k) => `<g transform="translate(${150 + x},${y}) rotate(${r})"><rect x="-22" y="-28" width="44" height="56" rx="3" fill="#f3efe6" opacity="${.95 - k * .08}"/><rect x="-14" y="-18" width="28" height="3" fill="#9a8fb3"/><rect x="-14" y="-10" width="22" height="3" fill="#9a8fb3"/><rect x="-14" y="-2" width="26" height="3" fill="#9a8fb3"/><circle cx="-8" cy="12" r="5" fill="#c9b8ee"/></g>`).join('')}`],
+    R4:['#3a1d06', '#0e0702', '#ffae2b', p => `<circle cx="150" cy="210" r="90" fill="#ff8c1a" opacity=".55"/><circle cx="150" cy="210" r="60" fill="#ffc15a" opacity=".6"/>
+      <path d="M0,300 L300,300 L300,450 L0,450 Z" fill="#160a03"/><path d="M150,300 L120,450 M150,300 L180,450" stroke="#3b2210" stroke-width="3"/><path d="M150,316 L146,340 M150,360 L145,392 M149,410 L143,450" stroke="#ffae2b" stroke-width="4"/>
+      <g transform="translate(70,300)" fill="#070301"><rect x="0" y="-66" width="104" height="58" rx="3"/><path d="M104,-50 L136,-50 L152,-28 L152,-8 L104,-8 Z"/><circle cx="22" cy="-6" r="13"/><circle cx="128" cy="-6" r="13"/><rect x="8" y="-60" width="88" height="2" fill="#2a1508"/></g>
+      <g transform="translate(232,330)"><path d="M0,-30 L28,18 L-28,18 Z" fill="none" stroke="#ff4d2e" stroke-width="5" stroke-linejoin="round"/><rect x="-2" y="-12" width="4" height="16" fill="#ff4d2e"/><circle cx="0" cy="10" r="2.5" fill="#ff4d2e"/></g>`],
+    R5:['#062a2c', '#010a0b', '#3ff0e0', p => `${dust(5, 50, '#9ff', .5)}
+      <g transform="translate(140,340)" fill="#021213" stroke="#3ff0e0" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round">
+        <path d="M-74,-104 Q-96,-92 -92,-56" fill="none" stroke-width="5"/>
+        <rect x="-76" y="-122" width="128" height="52" rx="16"/>
+        <path d="M-66,-72 V-12 M-46,-72 V-12 M26,-72 V-12 M44,-72 V-12" stroke-width="10"/>
+        <path d="M30,-118 L50,-122 L86,-182 L66,-188 Z"/>
+        <path d="M66,-188 L74,-206 L80,-190 L104,-176 L110,-160 L96,-156 L82,-166 Z"/>
+        <path d="M-52,-112 H24 M-52,-96 H24 M-52,-80 H24" stroke-width="1.4" opacity=".7"/>
+        <rect x="-90" y="-12" width="150" height="14" rx="3"/><circle cx="-64" cy="12" r="11"/><circle cx="34" cy="12" r="11"/>
+        <rect x="-20" y="-110" width="22" height="18" rx="2" fill="#3ff0e0" fill-opacity=".25"/></g>
+      <g stroke="#3ff0e0" stroke-width="1.6" fill="none" opacity=".75"><path d="M-40,280 H20 V300 H60" transform="translate(150,0)"/><path d="M-60,290 H-20 V310" transform="translate(150,0)"/><circle cx="210" cy="300" r="3" fill="#3ff0e0"/><circle cx="130" cy="310" r="3" fill="#3ff0e0"/></g>
+      <g transform="translate(70,150) rotate(-30)" filter="url(#${p}glow)"><circle r="12" fill="none" stroke="#ffd65a" stroke-width="5"/><path d="M12,0 H48 M36,0 V10 M44,0 V8" stroke="#ffd65a" stroke-width="5"/></g>`],
+    R6:['#2b2b33', '#08080b', '#e9e2d0', p => `<path d="M100,0 L200,0 L190,450 L110,450 Z" fill="#0f0f13"/>
+      <path d="M0,0 L100,0 L110,450 L0,450 Z" fill="#17171d"/><path d="M300,0 L200,0 L190,450 L300,450 Z" fill="#17171d"/>
+      <rect x="128" y="120" width="44" height="88" fill="#fff4d6"/><rect x="128" y="120" width="44" height="88" fill="url(#${p}spot)"/>
+      ${person(150, 206, 62, '#08080b')}<rect x="157" y="180" width="12" height="9" rx="1" fill="#08080b"/>
+      <path d="M128,208 L84,450 L216,450 L172,208 Z" fill="#fff4d6" opacity=".12"/>
+      <g fill="#e9e2d0" opacity=".85"><rect x="34" y="96" width="34" height="5"/><rect x="34" y="106" width="22" height="5"/><rect x="232" y="96" width="34" height="5"/></g>`],
+    R7:['#3a0711', '#0d0204', '#ff5a3c', p => `${[0, 1, 2, 3, 4].map(k => `<path d="M0,${380 - k * 70} H300" stroke="#5a1220" stroke-width="1"/>`).join('')}
+      <path d="M20,400 L80,360 L120,370 L170,290 L210,250 L246,130" fill="none" stroke="#ff5a3c" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" filter="url(#${p}glow)"/>
+      <path d="M246,130 L224,148 M246,130 L254,158" stroke="#ff5a3c" stroke-width="9" stroke-linecap="round"/>
+      <path d="M232,0 L240,60 L222,96 L246,130 L268,170 L254,230 L274,300" fill="none" stroke="#ffd2c4" stroke-width="2.5" opacity=".9"/>
+      <path d="M246,130 L290,110 M246,130 L300,150 M246,130 L210,90" stroke="#ffd2c4" stroke-width="1.6" opacity=".7"/>
+      ${[[60, 330], [100, 345], [150, 300], [196, 262]].map(([x, y]) => `<g transform="translate(${x},${y + 70})">${person(0, 0, 34, '#1d0408')}</g>`).join('')}`],
+    R8:['#3b3205', '#0d0b01', '#ffd23f', p => `<circle cx="150" cy="120" r="70" fill="#ffd23f" opacity=".22"/>
+      <path d="M0,330 Q150,250 300,330 L300,450 L0,450 Z" fill="#080600"/>
+      <g stroke="#2a2203" stroke-width="3">${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(k => { const x = 18 + k * 26; return [3, 4, 7].includes(k) ? '' : `<rect x="${x}" y="${280 - Math.sin((k + .5) / 11 * Math.PI) * 26}" width="20" height="8" fill="#c9a24a"/>`; }).join('')}</g>
+      <path d="M10,286 Q150,234 290,286" fill="none" stroke="#c9a24a" stroke-width="2"/><path d="M10,262 Q150,210 290,262" fill="none" stroke="#c9a24a" stroke-width="2"/>
+      ${person(96, 262, 56, '#0d0b01')}
+      <g fill="#ffd23f" opacity=".9"><path d="M114,290 l6,10 l-6,10 l-6,-10z"/><path d="M200,300 l5,8 l-5,8 l-5,-8z"/></g>`],
+    R9:['#04384f', '#01131c', '#7fe3ff', p => `${dust(9, 40, '#e6fbff', .6)}
+      <path d="M0,170 H300 V450 H0 Z" fill="#022a3b" opacity=".85"/>
+      <path d="M118,170 L140,120 L156,138 L172,104 L190,170 Z" fill="#f2fdff"/>
+      <path d="M118,170 L190,170 L250,250 L262,330 L210,410 L120,430 L52,370 L40,280 L80,210 Z" fill="#8fdcf2" opacity=".55"/>
+      <path d="M118,170 L190,170 L222,240 L160,260 L96,236 Z" fill="#bff0ff" opacity=".35"/>
+      <path d="M0,170 Q20,164 40,170 T80,170 T120,170 T160,170 T200,170 T240,170 T280,170 T320,170" fill="none" stroke="#bff0ff" stroke-width="2" opacity=".8"/>
+      <g transform="translate(70,166)"><path d="M-22,0 L24,0 L16,8 L-16,8 Z" fill="#0b0b0b"/><rect x="-1" y="-30" width="2" height="30" fill="#0b0b0b"/><path d="M1,-28 L18,-6 L1,-6 Z" fill="#e8e1d4"/></g>`],
+    R10:['#2a0b33', '#08020a', '#ff9a2e', p => `<circle cx="150" cy="150" r="90" fill="url(#${p}spot)"/>
+      <g transform="translate(150,0)"><rect x="-30" y="190" width="60" height="190" fill="#e9dccf"/><path d="M-30,190 Q-20,214 -30,240 M30,190 Q24,226 30,262" stroke="#cdbcaa" stroke-width="10" fill="none"/>
+      <path d="M-30,190 Q-36,230 -46,250 Q-40,262 -30,252" fill="#e9dccf"/><path d="M30,380 L30,380" />
+      <path d="M0,190 L0,176" stroke="#2a1a12" stroke-width="3"/><path d="M0,120 Q22,150 12,172 Q0,186 -12,172 Q-22,150 0,120 Z" fill="#ff9a2e" filter="url(#${p}glow)"/><path d="M0,140 Q10,158 5,170 Q0,176 -5,170 Q-10,158 0,140 Z" fill="#ffe7a8"/>
+      <path d="M-30,380 L30,380 L40,396 L-40,396 Z" fill="#180714"/>
+      <g transform="rotate(180) translate(0,-420)"><path d="M0,0 Q8,14 4,22 Q0,28 -4,22 Q-8,14 0,0 Z" fill="#ff9a2e" transform="translate(0,26)" filter="url(#${p}glow)"/></g></g>
+      ${dust(10, 30, '#ffcf8a', .6)}`],
+    R11:['#2e2305', '#0a0701', '#ffcf3a', p => `<g transform="translate(150,236)">
+      <path d="M-70,-160 H70 M-70,160 H70" stroke="#ffcf3a" stroke-width="10" stroke-linecap="round"/>
+      <path d="M-58,-152 Q-58,-40 -8,0 Q-58,40 -58,152 M58,-152 Q58,-40 8,0 Q58,40 58,152" fill="none" stroke="#f6e7b0" stroke-width="5" opacity=".9"/>
+      <path d="M-50,-140 Q-46,-70 0,-24 Q46,-70 50,-140 Z" fill="#ffcf3a" opacity=".22"/>
+      ${[[-30, 100], [-12, 112], [10, 104], [28, 118], [-22, 130], [0, 124], [20, 138], [-38, 140], [36, 144], [-6, 144]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="11" ry="4.5" fill="#ffcf3a" stroke="#8a6a0f" stroke-width="1.5"/>`).join('')}
+      ${[0, 1, 2, 3].map(k => `<ellipse cx="0" cy="${-6 + k * 22}" rx="8" ry="3.4" fill="#ffcf3a" opacity="${1 - k * .15}"/>`).join('')}
+      <path d="M-46,-120 L46,-120" stroke="#ffcf3a" stroke-width="1" stroke-dasharray="3 4" opacity=".6"/></g>`],
+    R12:['#0c1e44', '#030817', '#ffd400', p => `${stars(150, 120, 64, 12, '#ffd400', 6)}
+      <g transform="translate(150,300) rotate(-6)"><rect x="-86" y="-90" width="172" height="200" rx="4" fill="#efe8d8"/>
+      ${Array.from({length:16}, (_, k) => `<rect x="-70" y="${-74 + k * 11}" width="${k % 5 === 4 ? 80 : 140}" height="3.5" fill="#8a8170" opacity=".8"/>`).join('')}
+      <path d="M-66,90 Q-40,70 -20,92 T20,86" fill="none" stroke="#1a2a5a" stroke-width="3"/></g>
+      <g transform="translate(210,330)"><circle r="40" fill="#fff" fill-opacity=".14" stroke="#1b1b1b" stroke-width="8"/><path d="M28,28 L70,72" stroke="#1b1b1b" stroke-width="14" stroke-linecap="round"/>
+      <rect x="-26" y="-6" width="52" height="3.5" fill="#c4122f"/><rect x="-26" y="2" width="40" height="3.5" fill="#c4122f"/></g>`],
+    R13:['#1a0a2e', '#05020b', '#c56bff', p => `<rect x="0" y="330" width="300" height="120" fill="#0b0414"/>
+      <path d="M118,330 L40,450 L300,450 L300,400 Z" fill="#000" opacity=".55"/>
+      ${person(118, 330, 120, '#05020b')}
+      ${[[176, 90, '#ff3d8b'], [228, 120, '#3df2ff'], [196, 170, '#ffd53d'], [248, 196, '#7dff6a'], [172, 236, '#c56bff'], [232, 262, '#ff7a3d'], [70, 120, '#3d8bff']].map(([x, y, c], k) => `<g transform="translate(${x},${y}) rotate(${(k % 3 - 1) * 8})" filter="url(#${p}glow)"><rect x="-17" y="-17" width="34" height="34" rx="9" fill="${c}" opacity=".9"/><rect x="-8" y="-8" width="16" height="16" rx="4" fill="#000" opacity=".35"/></g>`).join('')}
+      <g stroke="#c56bff" stroke-width="1" opacity=".4" fill="none"><path d="M118,230 L176,90 M118,230 L228,120 M118,230 L196,170"/></g>`],
+    R14:['#2b1406', '#0a0502', '#ff8a3d', p => `<circle cx="150" cy="150" r="80" fill="#ff8a3d" opacity=".25"/>
+      <path d="M0,340 H300 V450 H0 Z" fill="#0d0603"/>
+      ${[[26, 150, '#1a0d05'], [114, 120, '#1a0d05'], [202, 160, '#1a0d05']].map(([x, h, c], k) => `<g transform="translate(${x},340)"><rect x="0" y="${-h}" width="72" height="${h}" fill="${c}"/>${Array.from({length:Math.floor(h / 26)}, (_, j) => [0, 1, 2].map(i => `<rect x="${10 + i * 20}" y="${-h + 12 + j * 26}" width="12" height="14" fill="${k === 1 && (i + j) % 4 === 0 ? '#3b2617' : '#ffcf8a'}" opacity="${k === 1 ? .35 : .85}"/>`).join('')).join('')}
+        ${k === 1 ? `<rect x="24" y="-40" width="24" height="40" fill="#ff8a3d"/><path d="M48,-40 L62,-34 L62,6 L48,0 Z" fill="#3b2617"/>` : `<rect x="26" y="-34" width="20" height="34" fill="#2a170a"/>`}</g>`).join('')}
+      <path d="M150,340 L110,450 L190,450 Z" fill="#ff8a3d" opacity=".25"/>
+      <g font-family="Archivo, sans-serif" font-size="11" fill="#ffcf8a" text-anchor="middle" opacity=".8"><text x="62" y="360">NANTES</text><text x="150" y="360">ANGERS</text><text x="238" y="360">RENNES</text></g>`],
+    R15:['#05261a', '#010a06', '#3dff8b', p => `<rect x="0" y="0" width="300" height="450" fill="#04140d"/>
+      <g transform="translate(150,0)"><rect x="-60" y="140" width="120" height="250" fill="#000"/><path d="M-60,140 L20,154 L20,402 L-60,390 Z" fill="#0f2a1e"/><circle cx="8" cy="270" r="4" fill="#3dff8b"/>
+      <path d="M-60,140 L-60,390 L60,390 L60,140" fill="none" stroke="#1d3d2e" stroke-width="6"/>
+      <path d="M60,150 L60,390 L150,450 L150,150 Z" fill="#3dff8b" opacity=".06"/>${person(40, 380, 90, '#000')}</g>
+      <g transform="translate(150,96)" filter="url(#${p}glow)"><rect x="-44" y="-16" width="88" height="32" rx="3" fill="#0b3b25" stroke="#3dff8b" stroke-width="2"/><text x="0" y="6" text-anchor="middle" font-family="Archivo, sans-serif" font-weight="800" font-size="16" fill="#3dff8b" letter-spacing="3">EXIT</text></g>
+      <g transform="translate(86,270) rotate(-20)" fill="#ffd65a"><circle r="8" fill="none" stroke="#ffd65a" stroke-width="3"/><rect x="8" y="-2" width="26" height="4"/><rect x="26" y="0" width="3" height="8"/></g>`],
+    R16:['#330509', '#0a0102', '#ff2d4f', p => `<circle cx="150" cy="190" r="110" fill="url(#${p}spot)"/>
+      <g transform="translate(150,200)"><path d="M-70,-90 Q0,-120 70,-90 Q80,-10 50,60 Q0,110 -50,60 Q-80,-10 -70,-90 Z" fill="#f1e6da"/>
+      <path d="M0,-108 Q-8,0 0,92 Q60,70 64,0 Q76,-60 70,-90 Q40,-104 0,-108 Z" fill="#0d0203"/>
+      <path d="M-46,-36 Q-30,-48 -14,-36 Q-30,-28 -46,-36 Z" fill="#0d0203"/><path d="M14,-36 Q30,-48 46,-36 Q30,-28 14,-36 Z" fill="#ff2d4f" filter="url(#${p}glow)"/>
+      <path d="M-30,30 Q-14,22 0,30" fill="none" stroke="#0d0203" stroke-width="4" stroke-linecap="round"/></g>
+      <g transform="translate(218,360) rotate(18)"><rect x="-16" y="-34" width="32" height="56" rx="5" fill="#d8d0c6"/><rect x="-10" y="-50" width="20" height="18" rx="2" fill="#8a8178"/><rect x="-6" y="-46" width="4" height="5" fill="#2a2522"/><rect x="2" y="-46" width="4" height="5" fill="#2a2522"/></g>`],
+  };
+})();
+const POSTER_TONE = rid => (POSTER_ART[rid] || ['#222', '#000', '#fff'])[2];
+/* Full poster markup. opts: {title, score, lv, color} drawn on the poster; ids unique per call. */
+let posterSeq = 0;
+function posterSVG(rid, opts = {}){
+  const art = POSTER_ART[rid]; if (!art) return '';
+  const [top, bot, acc, draw] = art, p = `pz${rid}${++posterSeq}`;
+  const t = String(opts.title || '').replace(/[&<>"]/g, c => ({'&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;'}[c]));
+  const words = t.toUpperCase().split(/\s+/), lines = []; words.forEach(w => { const l = lines[lines.length - 1]; if (l && (l + ' ' + w).length <= 11) lines[lines.length - 1] = l + ' ' + w; else lines.push(w); });
+  const fs = lines.length > 2 ? 34 : 42, y0 = 432 - (lines.length - 1) * fs * .92;
+  return `<svg viewBox="0 0 300 450" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${t}">
+  <defs><linearGradient id="${p}bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${top}"/><stop offset="1" stop-color="${bot}"/></linearGradient>
+  <radialGradient id="${p}spot" cx="50%" cy="45%" r="55%"><stop offset="0" stop-color="${acc}" stop-opacity=".45"/><stop offset="1" stop-color="${acc}" stop-opacity="0"/></radialGradient>
+  <linearGradient id="${p}fade" x1="0" y1="0" x2="0" y2="1"><stop offset=".55" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".92"/></linearGradient>
+  <filter id="${p}glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  <filter id="${p}grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .06 0"/></filter></defs>
+  <rect width="300" height="450" fill="url(#${p}bg)"/>${draw(p)}
+  <rect width="300" height="450" fill="url(#${p}fade)"/><rect width="300" height="450" filter="url(#${p}grain)" opacity=".9"/>
+  ${opts.score != null ? `<g transform="translate(266,30)"><circle r="19" fill="#000" fill-opacity=".55" stroke="${opts.color || acc}" stroke-width="3"/><text y="7" text-anchor="middle" font-family="Anton, Impact, sans-serif" font-size="20" fill="#fff">${Number(opts.score)}</text></g>` : ''}
+  <text x="18" y="34" font-family="Archivo, sans-serif" font-weight="800" font-size="13" letter-spacing="3" fill="${acc}">${rid}</text>
+  ${lines.map((l, k) => `<text x="18" y="${(y0 + k * fs * .92).toFixed(0)}" font-family="Anton, Impact, sans-serif" font-size="${fs}" fill="#fff" letter-spacing=".5">${l}</text>`).join('')}
+</svg>`;
+}
+
+(() => {
+'use strict';
+const D = {"RISKS": [{"id": "R1", "name": "Cloud outage", "cat": "Operational / IT", "analyst": "Anish", "cause": "Heavy cloud dependence, no tested recovery plan", "event": "Provider outage or locked cloud account", "cons": "All client services stop; SLA penalties", "p": 3, "i": 4, "tp": 2, "ti": 3}, {"id": "R2", "name": "Cyberattack", "cat": "Cyber", "analyst": "Anish", "cause": "40% telework, many new hires, new tools", "event": "Phishing or ransomware attack", "cons": "Systems encrypted, delivery halted, recovery costs", "p": 3, "i": 4, "tp": 2, "ti": 3}, {"id": "R3", "name": "Data breach / GDPR", "cat": "Legal / compliance", "analyst": "Mereena", "cause": "Client data spread across cloud, tools and subcontractors", "event": "Personal-data breach or GDPR non-compliance", "cons": "CNIL sanction; EU and public clients lose trust", "p": 3, "i": 4, "tp": 2, "ti": 3}, {"id": "R4", "name": "Supplier failure", "cat": "Third-party", "analyst": "Sudheer", "cause": "Subcontractors work on client projects", "event": "Delay, poor quality or supplier insolvency", "cons": "Missed deadlines, penalties, complaints", "p": 3, "i": 3, "tp": 2, "ti": 2}, {"id": "R5", "name": "Supplier breach", "cat": "Third-party / cyber", "analyst": "Sudheer", "cause": "Subcontractors have access to client systems", "event": "Their account is compromised or data misused", "cons": "Breach attributed to NOVATECH", "p": 2, "i": 4, "tp": 1, "ti": 4}, {"id": "R6", "name": "Major client loss", "cat": "Strategic", "analyst": "Fatah", "cause": "70% recurring revenue, new major accounts", "event": "A large client leaves after an incident", "cons": "Sharp revenue drop", "p": 2, "i": 4, "tp": 2, "ti": 3}, {"id": "R7", "name": "Growth vs control", "cat": "Operational", "analyst": "Krishna", "cause": "Revenue +35% and 25 hires in two years", "event": "Processes and controls do not scale", "cons": "Quality drops, SLA breaches, errors", "p": 3, "i": 3, "tp": 2, "ti": 2}, {"id": "R8", "name": "Onboarding gaps", "cat": "HR", "analyst": "Rambabu", "cause": "25 recent hires; know-how held by a few people", "event": "Weak onboarding, or a key person leaves", "cons": "Mistakes and lost know-how", "p": 3, "i": 3, "tp": 2, "ti": 2}, {"id": "R9", "name": "Missed weak signals", "cat": "Governance", "analyst": "Krishna", "cause": "Small incidents handled one by one", "event": "Nothing is logged or linked", "cons": "A major incident is not seen coming", "p": 3, "i": 3, "tp": 1, "ti": 3}, {"id": "R10", "name": "Burnout", "cat": "HR", "analyst": "Rambabu", "cause": "Growth workload on existing teams", "event": "Overload and burnout", "cons": "Absences, turnover, legal liability", "p": 2, "i": 3, "tp": 1, "ti": 3}, {"id": "R11", "name": "Cash strain", "cat": "Financial", "analyst": "Fatah", "cause": "Hiring and projects paid before clients pay", "event": "Working-capital squeeze", "cons": "Cash shortfall", "p": 2, "i": 3, "tp": 1, "ti": 3}, {"id": "R12", "name": "EU contract liability", "cat": "Legal", "analyst": "Mereena", "cause": "New EU clients with unfamiliar contract terms", "event": "Liability, penalty or data clauses not understood", "cons": "Disputes and penalties", "p": 2, "i": 3, "tp": 1, "ti": 3}, {"id": "R13", "name": "Shadow IT", "cat": "Cyber / IT", "analyst": "Niranjan", "cause": "New tools deployed quickly", "event": "Unapproved apps, poor settings, forgotten accounts", "cons": "Data leakage, security gaps", "p": 3, "i": 2, "tp": 2, "ti": 2}, {"id": "R14", "name": "Site gaps", "cat": "Operational", "analyst": "Niranjan", "cause": "Three agencies working differently", "event": "Uneven security and quality practices", "cons": "The weakest site exposes everyone", "p": 2, "i": 2, "tp": 1, "ti": 2}, {"id": "R15", "name": "Leaver access not revoked", "cat": "Cyber / HR", "analyst": "Rambabu", "cause": "Many arrivals and departures, contractors, no leaver process", "event": "Former staff keep access to cloud and client systems", "cons": "Data theft or sabotage", "p": 3, "i": 3, "tp": 1, "ti": 3}, {"id": "R16", "name": "Insider threat", "cat": "Cyber / HR", "analyst": "Rambabu", "cause": "Broad access rights, no monitoring, overloaded staff", "event": "An employee leaks or misuses client data", "cons": "Data leak, GDPR exposure", "p": 2, "i": 4, "tp": 1, "ti": 4}], "ACTIONS": [{"id": "A1", "title": "Cyber baseline", "steps": ["MFA on every account", "Endpoint protection on all 85 laptops", "Phishing training at onboarding and every quarter", "List of approved tools"], "risks": ["R2", "R13", "R14"], "treat": "Reduce", "owner": "IT manager", "horizon": "0–3 months", "cost": 30000, "gain": "Blocks most phishing and account-takeover attacks."}, {"id": "A2", "title": "Continuity and recovery plan (PCA/PRA)", "steps": ["Backups held outside the main cloud account", "Restore test every quarter", "Crisis procedure and contact list", "Uptime clause with the cloud provider"], "risks": ["R1", "R2"], "treat": "Reduce", "owner": "IT manager + Direction", "horizon": "0–3 months", "cost": 45000, "gain": "Client services restart in hours, not weeks."}, {"id": "A3", "title": "Incident register", "steps": ["One place to log every incident and near-miss", "Monthly review by the Direction", "Trend report across the three sites"], "risks": ["R9", "R7", "R14"], "treat": "Reduce", "owner": "Quality / risk lead", "horizon": "0–1 month", "cost": 5000, "gain": "Weak signals become visible before they add up."}, {"id": "A4", "title": "GDPR programme", "steps": ["Data inventory", "Register of processing activities", "Written 72-hour breach procedure", "Name a DPO or data referent"], "risks": ["R3", "R12"], "treat": "Reduce", "owner": "Legal / DPO", "horizon": "0–6 months", "cost": 40000, "gain": "Breaches handled within the legal deadline; client trust protected."}, {"id": "A5", "title": "Subcontractor framework", "steps": ["Security and GDPR clauses", "Delivery SLAs and audit right", "Least-privilege access with end dates", "Annual review and a backup supplier"], "risks": ["R4", "R5"], "treat": "Reduce + transfer", "owner": "Purchasing + IT", "horizon": "3–6 months", "cost": 15000, "gain": "Supplier problems caught early and contained."}, {"id": "A6", "title": "Cyber insurance and contract caps", "steps": ["Cyber insurance policy", "Cap liability and SLA penalties in client contracts"], "risks": ["R2", "R6", "R12"], "treat": "Transfer", "owner": "Finance + Legal", "horizon": "3–6 months", "cost": 20000, "gain": "A major incident no longer threatens the balance sheet."}, {"id": "A7", "title": "Onboarding and knowledge transfer", "steps": ["Security training in week one", "Documented core processes", "Buddy system and a backup for key roles", "Workload monitoring"], "risks": ["R8", "R10", "R14"], "treat": "Reduce", "owner": "HR", "horizon": "3–6 months", "cost": 12000, "gain": "New hires work safely sooner; less burnout."}, {"id": "A8", "title": "Client and cash monitoring", "steps": ["Revenue share of the top 5 clients each month", "12-month cash forecast", "Follow-up of client payment terms"], "risks": ["R6", "R11"], "treat": "Reduce / monitor", "owner": "Finance", "horizon": "0–3 months", "cost": 4000, "gain": "Dependence and cash gaps seen months ahead."}, {"id": "A9", "title": "Access lifecycle", "steps": ["Accounts closed on the leaving day", "Quarterly access review", "Least privilege and admin-rights clean-up", "Log access to client data"], "risks": ["R15", "R16"], "treat": "Reduce", "owner": "HR + IT", "horizon": "0–3 months", "cost": 18000, "gain": "Former staff and over-privileged accounts can no longer leak data."}], "KRIS": [{"id": "K1", "risk": "R1", "name": "Failed backup jobs, last 7 days", "unit": "", "dir": "up", "amber": 1, "red": 3, "max": 1000}, {"id": "K2", "risk": "R1", "name": "Cloud availability, last 30 days", "unit": "%", "dir": "down", "amber": 99.9, "red": 99.5, "max": 100}, {"id": "K3", "risk": "R2", "name": "Phishing test click rate", "unit": "%", "dir": "up", "amber": 8, "red": 15, "max": 100}, {"id": "K4", "risk": "R2", "name": "Accounts without MFA", "unit": "%", "dir": "up", "amber": 5, "red": 15, "max": 100}, {"id": "K5", "risk": "R3", "name": "Data stores missing from the inventory", "unit": "", "dir": "up", "amber": 2, "red": 5, "max": 1000}, {"id": "K6", "risk": "R3", "name": "Data-access requests overdue (30+ days)", "unit": "", "dir": "up", "amber": 1, "red": 3, "max": 1000}, {"id": "K7", "risk": "R4", "name": "Late subcontractor deliveries", "unit": "%", "dir": "up", "amber": 10, "red": 20, "max": 100}, {"id": "K8", "risk": "R5", "name": "Subcontractor accounts with no end date", "unit": "", "dir": "up", "amber": 3, "red": 8, "max": 1000}, {"id": "K9", "risk": "R6", "name": "Revenue share of top 5 clients", "unit": "%", "dir": "up", "amber": 35, "red": 45, "max": 100}, {"id": "K10", "risk": "R7", "name": "Core processes not documented", "unit": "", "dir": "up", "amber": 4, "red": 8, "max": 1000}, {"id": "K11", "risk": "R8", "name": "New hires without security training", "unit": "%", "dir": "up", "amber": 10, "red": 25, "max": 100}, {"id": "K12", "risk": "R9", "name": "Small incidents reported this week", "unit": "", "dir": "up", "amber": 6, "red": 10, "max": 10000}, {"id": "K13", "risk": "R10", "name": "Average overtime per person", "unit": " h/wk", "dir": "up", "amber": 4, "red": 7, "max": 80}, {"id": "K14", "risk": "R11", "name": "Cash runway", "unit": " days", "dir": "down", "amber": 90, "red": 60, "max": 3650}, {"id": "K15", "risk": "R12", "name": "EU contracts signed without legal review", "unit": "", "dir": "up", "amber": 1, "red": 3, "max": 1000}, {"id": "K16", "risk": "R13", "name": "Unapproved apps detected", "unit": "", "dir": "up", "amber": 5, "red": 12, "max": 10000}, {"id": "K17", "risk": "R14", "name": "Sites failing the common security checklist", "unit": "", "dir": "up", "amber": 1, "red": 2, "max": 3}, {"id": "K18", "risk": "R15", "name": "Active accounts of people who left", "unit": "", "dir": "up", "amber": 1, "red": 3, "max": 10000}, {"id": "K19", "risk": "R16", "name": "Staff with admin rights", "unit": "%", "dir": "up", "amber": 10, "red": 20, "max": 100}, {"id": "K20", "risk": "R2", "name": "Staff who can telework", "unit": "%", "dir": "up", "amber": 25, "red": 50, "max": 100, "dossier": true}, {"id": "K21", "risk": "R8", "name": "Staff hired in the last two years", "unit": "%", "dir": "up", "amber": 15, "red": 30, "max": 100, "dossier": true}, {"id": "K22", "risk": "R7", "name": "Revenue growth over two years", "unit": "%", "dir": "up", "amber": 20, "red": 40, "max": 1000, "dossier": true}], "DEFAULT_ASSUMP": {"lik": [0.05, 0.15, 0.35, 0.65], "imp": [5000, 40000, 300000, 1200000]}, "SEED": {"clues/dossier-01": {"text": "Infrastructure strongly dependent on the cloud.", "dept": "Dossier", "risks": ["R1", "R2"], "effect": "none", "at": "2026-10-02T09:00:00.000Z"}, "clues/dossier-02": {"text": "40% of employees can telework.", "dept": "Dossier", "risks": ["R2", "R13"], "effect": "none", "at": "2026-10-02T09:01:00.000Z"}, "clues/dossier-03": {"text": "25 new employees hired in two years (85 staff in total).", "dept": "Dossier", "risks": ["R8", "R15", "R10"], "effect": "none", "at": "2026-10-02T09:02:00.000Z"}, "clues/dossier-04": {"text": "Revenue up 35% in two years, to €12M.", "dept": "Dossier", "risks": ["R7", "R11"], "effect": "none", "at": "2026-10-02T09:03:00.000Z"}, "clues/dossier-05": {"text": "Several subcontractors take part in client projects.", "dept": "Dossier", "risks": ["R4", "R5"], "effect": "none", "at": "2026-10-02T09:04:00.000Z"}, "clues/dossier-06": {"text": "About 70% of revenue comes from recurring contracts; important new clients signed.", "dept": "Dossier", "risks": ["R6"], "effect": "none", "at": "2026-10-02T09:05:00.000Z"}, "clues/dossier-07": {"text": "Several new digital tools deployed.", "dept": "Dossier", "risks": ["R13", "R2"], "effect": "none", "at": "2026-10-02T09:06:00.000Z"}, "clues/dossier-08": {"text": "The company is starting to work with European clients.", "dept": "Dossier", "risks": ["R3", "R12"], "effect": "none", "at": "2026-10-02T09:07:00.000Z"}, "clues/dossier-09": {"text": "Three agencies: Nantes, Angers and Rennes; 230 active clients.", "dept": "Dossier", "risks": ["R14"], "effect": "none", "at": "2026-10-02T09:08:00.000Z"}, "clues/dossier-10": {"text": "The Direction notes a growing number of small incidents and unusual signals.", "dept": "Dossier", "risks": ["R9"], "effect": "none", "at": "2026-10-02T09:09:00.000Z"}, "kri/K20": {"readings": [{"v": 40, "at": "2026-10-02T09:00:00.000Z", "src": "dossier"}]}, "kri/K21": {"readings": [{"v": 29.4, "at": "2026-10-02T09:00:00.000Z", "src": "dossier"}]}, "kri/K22": {"readings": [{"v": 35, "at": "2026-10-02T09:00:00.000Z", "src": "dossier"}]}}, "IMPACT_PROFILE": {"R1": {"onset": 0.05, "hours": 48, "split": [["SLA penalties and lost service hours", "Pénalités SLA et heures de service perdues", 0.55], ["Recovery work and overtime", "Remise en service et heures sup.", 0.25], ["Client goodwill", "Confiance des clients", 0.2]]}, "R2": {"onset": 0.08, "hours": 72, "split": [["Business interruption", "Interruption d’activité", 0.45], ["Recovery and forensics", "Remise en état et investigation", 0.25], ["GDPR and legal costs", "Coûts RGPD et juridiques", 0.15], ["Clients lost", "Clients perdus", 0.15]]}, "R3": {"onset": 0.06, "hours": 72, "split": [["CNIL fine and legal costs", "Amende CNIL et frais juridiques", 0.45], ["Notifying and supporting people", "Notification et accompagnement des personnes", 0.2], ["Lost client trust", "Perte de confiance des clients", 0.35]]}, "R4": {"onset": 0.04, "hours": 336, "split": [["Late-delivery penalties", "Pénalités de retard", 0.5], ["Replacement supplier costs", "Coût d’un fournisseur de remplacement", 0.3], ["Complaints and rework", "Réclamations et reprises", 0.2]]}, "R5": {"onset": 0.07, "hours": 72, "split": [["Breach response", "Réponse à la faille", 0.35], ["GDPR and legal costs", "Coûts RGPD et juridiques", 0.35], ["Lost client trust", "Perte de confiance des clients", 0.3]]}, "R6": {"onset": 0.05, "hours": 720, "split": [["Lost recurring revenue", "Chiffre d’affaires récurrent perdu", 0.8], ["Cost of winning new clients", "Coût pour regagner des clients", 0.2]]}, "R7": {"onset": 0.03, "hours": 720, "split": [["Rework and SLA breaches", "Reprises et non-respect des SLA", 0.6], ["Quality issues", "Problèmes de qualité", 0.4]]}, "R8": {"onset": 0.03, "hours": 720, "split": [["Errors and rework", "Erreurs et reprises", 0.6], ["Lost know-how", "Savoir-faire perdu", 0.4]]}, "R9": {"onset": 0.05, "hours": 336, "split": [["Incident that escalates", "Incident qui s’aggrave", 0.7], ["Investigation", "Investigation", 0.3]]}, "R10": {"onset": 0.03, "hours": 1440, "split": [["Absence and replacement", "Absences et remplacements", 0.6], ["Staff turnover", "Départs de salariés", 0.4]]}, "R11": {"onset": 0.03, "hours": 720, "split": [["Short-term financing", "Financement court terme", 0.4], ["Late-payment penalties", "Pénalités de retard de paiement", 0.3], ["Delayed projects", "Projets retardés", 0.3]]}, "R12": {"onset": 0.04, "hours": 720, "split": [["Contract penalties", "Pénalités contractuelles", 0.6], ["Legal costs", "Frais juridiques", 0.4]]}, "R13": {"onset": 0.05, "hours": 168, "split": [["Data leakage", "Fuite de données", 0.5], ["Clean-up of unapproved tools", "Nettoyage des outils non approuvés", 0.5]]}, "R14": {"onset": 0.04, "hours": 336, "split": [["Remediation across sites", "Mise à niveau des sites", 0.6], ["Exposure of the weakest site", "Exposition du site le plus faible", 0.4]]}, "R15": {"onset": 0.07, "hours": 72, "split": [["Data theft or sabotage", "Vol de données ou sabotage", 0.5], ["Investigation", "Investigation", 0.3], ["Access clean-up", "Nettoyage des accès", 0.2]]}, "R16": {"onset": 0.07, "hours": 72, "split": [["Data leak", "Fuite de données", 0.45], ["GDPR and legal costs", "Coûts RGPD et juridiques", 0.35], ["Investigation", "Investigation", 0.2]]}}, "PLAYBOOKS": {"R1": [["Switch client services to the recovery plan", "IT manager"], ["Restore critical data from the off-cloud backup", "IT support"], ["Open a priority ticket with the cloud provider", "IT manager"], ["Tell affected clients and give a recovery time", "Direction"]], "R2": [["Force a password reset on all accounts", "IT manager"], ["Revoke active sessions and lock suspicious accounts", "IT manager"], ["Isolate infected laptops from the network", "IT support"], ["Block sign-ins from unusual countries", "IT manager"]], "R3": [["Revoke leaked links and shared access", "IT manager"], ["Freeze bulk data exports", "IT support"], ["Start the 72-hour CNIL notification clock", "Legal / DPO"], ["Preserve logs for the investigation", "IT support"]], "R4": [["Activate the backup supplier", "Purchasing"], ["Re-plan deadlines with affected clients", "Project managers"], ["Hold payments until delivery is confirmed", "Finance"]], "R5": [["Suspend the subcontractor’s accounts", "IT manager"], ["Rotate shared passwords and API keys", "IT support"], ["Ask the supplier for an incident report within 24 h", "Purchasing"]], "R6": [["Director calls the client within 24 h", "Direction"], ["Offer a recovery plan and a service credit", "Sales director"], ["Review renewal dates of the other top clients", "Finance"]], "R7": [["Freeze non-essential new projects for a week", "Direction"], ["Name an owner for each failing process", "Quality / risk lead"], ["Review open incidents with the Direction", "Quality / risk lead"]], "R8": [["Pause admin rights for untrained new hires", "IT manager"], ["Run the security induction this week", "HR"], ["Pair each new hire with a buddy", "Team leads"]], "R9": [["Log every recent incident in the register", "Quality / risk lead"], ["Hold an emergency risk review", "Direction"], ["Give each incident an owner", "Quality / risk lead"]], "R10": [["Redistribute urgent work across teams", "Team leads"], ["Stop overtime for the most loaded staff", "HR"], ["HR check-in with affected teams", "HR"]], "R11": [["Chase overdue invoices today", "Finance"], ["Postpone non-essential spending", "Direction"], ["Ask the bank for a short-term credit line", "Finance"]], "R12": [["Stop signing new EU contracts until legal review", "Sales director"], ["Legal review of the clauses in force", "Legal / DPO"], ["Notify the insurer of possible claims", "Finance"]], "R13": [["Block the unapproved apps", "IT manager"], ["Export company data out of them", "IT support"], ["Remind staff of the approved tools list", "IT manager"]], "R14": [["Run the security checklist on the failing site", "Site managers"], ["Apply the common baseline settings", "IT support"], ["Name a site security contact", "Site managers"]], "R15": [["Disable all accounts of people who left", "IT manager"], ["Rotate shared passwords", "IT support"], ["Check logs for logins after leaving dates", "IT manager"]], "R16": [["Suspend the suspected account", "IT manager"], ["Remove excess admin rights", "IT manager"], ["Preserve logs and inform HR and Legal", "HR"]]}, "RISK_OWNER": {"R1": "IT manager", "R2": "IT manager", "R3": "Legal / DPO", "R4": "Purchasing", "R5": "Purchasing + IT", "R6": "Sales director", "R7": "Direction", "R8": "HR", "R9": "Quality / risk lead", "R10": "HR", "R11": "Finance", "R12": "Legal / DPO", "R13": "IT manager", "R14": "Site managers", "R15": "HR + IT", "R16": "HR + IT"}, "ROLE_PERSON": {"IT manager": "Anish", "IT support": "Niranjan", "Legal / DPO": "Mereena", "Purchasing": "Sudheer", "Purchasing + IT": "Sudheer", "Project managers": "Sudheer", "Finance": "Fatah", "Sales director": "Fatah", "HR": "Rambabu", "HR + IT": "Rambabu", "Team leads": "Rambabu", "Direction": "Krishna", "Quality / risk lead": "Krishna", "Site managers": "Niranjan"}, "SECTORS": [["Anish", "IT & cyber"], ["Mereena", "Legal & data"], ["Sudheer", "Suppliers"], ["Rambabu", "People"], ["Krishna", "Governance"], ["Fatah", "Finance"], ["Niranjan", "Tools & sites"]]};
+const FR = {"Cloud outage": "Panne du cloud", "Cyberattack": "Cyberattaque", "Data breach / GDPR": "Fuite de données / RGPD", "Supplier failure": "Défaillance fournisseur", "Supplier breach": "Faille chez un fournisseur", "Major client loss": "Perte d’un grand client", "Growth vs control": "Croissance vs contrôle", "Onboarding gaps": "Intégration insuffisante", "Missed weak signals": "Signaux faibles ignorés", "Burnout": "Épuisement professionnel", "Cash strain": "Tensions de trésorerie", "EU contract liability": "Responsabilité des contrats UE", "Shadow IT": "Shadow IT", "Site gaps": "Écarts entre sites", "Leaver access not revoked": "Accès des sortants non révoqués", "Insider threat": "Menace interne", "Failed backup jobs, last 7 days": "Sauvegardes en échec, 7 derniers jours", "Cloud availability, last 30 days": "Disponibilité du cloud, 30 derniers jours", "Phishing test click rate": "Taux de clic aux tests de hameçonnage", "Accounts without MFA": "Comptes sans MFA", "Data stores missing from the inventory": "Stockages de données absents de l’inventaire", "Data-access requests overdue (30+ days)": "Demandes d’accès aux données en retard (30 j +)", "Late subcontractor deliveries": "Livraisons de sous-traitants en retard", "Subcontractor accounts with no end date": "Comptes de sous-traitants sans date de fin", "Revenue share of top 5 clients": "Part du CA des 5 premiers clients", "Core processes not documented": "Processus clés non documentés", "New hires without security training": "Recrues sans formation sécurité", "Small incidents reported this week": "Petits incidents signalés cette semaine", "Average overtime per person": "Heures supplémentaires moyennes par personne", "Cash runway": "Autonomie de trésorerie", "EU contracts signed without legal review": "Contrats UE signés sans revue juridique", "Unapproved apps detected": "Applications non approuvées détectées", "Sites failing the common security checklist": "Sites non conformes à la check-list sécurité commune", "Active accounts of people who left": "Comptes actifs de personnes parties", "Staff with admin rights": "Salariés avec droits admin", "Staff who can telework": "Salariés pouvant télétravailler", "Staff hired in the last two years": "Salariés recrutés ces deux dernières années", "Revenue growth over two years": "Croissance du CA sur deux ans", "Cyber baseline": "Socle cyber", "Continuity and recovery plan (PCA/PRA)": "Plan de continuité et de reprise (PCA/PRA)", "Incident register": "Registre des incidents", "GDPR programme": "Programme RGPD", "Subcontractor framework": "Cadre sous-traitants", "Cyber insurance and contract caps": "Assurance cyber et plafonds contractuels", "Onboarding and knowledge transfer": "Intégration et transfert de savoir", "Client and cash monitoring": "Suivi clients et trésorerie", "Access lifecycle": "Cycle de vie des accès", "IT department": "Service informatique", "Employees": "Salariés", "Accounting": "Comptabilité", "Suppliers": "Fournisseurs", " h/wk": " h/sem", " days": " jours", "within a week": "d’ici une semaine", ", and": ", et", ", type the team channel below (server: ntfy.sh) and tap": ", saisissez le canal de l’équipe ci-dessous (serveur : ntfy.sh) et touchez", ". On iPhone, allow notifications when asked.": ". Sur iPhone, autorisez les notifications quand c’est demandé.", ". No alert needs attention.": ". Aucune alerte en attente.", "0–1 month": "0–1 mois", "0–3 months": "0–3 mois", "0–6 months": "0–6 mois", "3–6 months": "3–6 mois", "1 Minor": "1 Mineur", "1 Rare": "1 Rare", "2 Moderate": "2 Modéré", "2 Possible": "2 Possible", "3 Likely": "3 Probable", "3 Major": "3 Majeur", "4 Almost certain": "4 Quasi certain", "4 Critical": "4 Critique", "1 hour": "1 heure", "10 s (demo)": "10 s (démo)", "1. Scoring": "1. Cotation", "2. Alerts before the risk hits": "2. Alertes avant que le risque ne frappe", "3. Live clues": "3. Indices en direct", "4. Mitigation and benefit": "4. Atténuation et bénéfice", "5. Keeping it current": "5. Garder le tableau à jour", "12-month cash forecast": "Prévision de trésorerie sur 12 mois", "25 new employees hired in two years (85 staff in total).": "25 nouveaux salariés recrutés en deux ans (85 salariés au total).", "25 recent hires; know-how held by a few people": "25 recrues récentes ; savoir-faire détenu par quelques personnes", "40% of employees can telework.": "40 % des salariés peuvent télétravailler.", "40% telework, many new hires, new tools": "40 % de télétravail, beaucoup de recrues, nouveaux outils", "70% of revenue comes from recurring contracts. Fewer serious incidents means fewer reasons for a major client to leave (R6).": "70 % du chiffre d’affaires vient de contrats récurrents. Moins d’incidents graves, c’est moins de raisons pour un grand client de partir (R6).", "70% recurring revenue, new major accounts": "70 % de CA récurrent, nouveaux grands comptes", "A data inventory and 72-hour breach procedure (A4) meet CNIL obligations and reassure EU and public-sector clients.": "Un inventaire des données et une procédure de violation en 72 heures (A4) répondent aux obligations CNIL et rassurent les clients européens et publics.", "A large client leaves after an incident": "Un grand client part après un incident", "A major incident is not seen coming": "Un incident majeur n’est pas anticipé", "A major incident no longer threatens the balance sheet.": "Un incident majeur ne menace plus le bilan.", "A risk score says how bad a risk is; it cannot say when it is about to happen. So every risk has one or two leading indicators (KRIs) with an amber and a red threshold. The dashboard raises three kinds of alert:": "Un score dit à quel point un risque est grave, pas quand il va survenir. Chaque risque a donc un ou deux indicateurs avancés (KRI), avec un seuil orange et un seuil rouge. Le tableau de bord déclenche trois types d’alerte :", "About 70% of revenue comes from recurring contracts; important new clients signed.": "Environ 70 % du CA provient de contrats récurrents ; de nouveaux clients importants ont signé.", "Absences, turnover, legal liability": "Absences, départs, responsabilité juridique", "Accounts closed on the leaving day": "Comptes fermés le jour du départ", "Acknowledge (5 min)": "Acquitter (5 min)", "After plan": "Après le plan", "After the full plan": "Après le plan complet", "After the plan,": "Après le plan,", "Alerts": "Alertes", "Alerts are ranked by severity, then by the risk’s current score, so the most critical risks come first. “Notify me for” chooses which risks raise pop-up notifications: critical only (12+), high and critical (8+), or all. Open alerts pop up as soon as the dashboard opens and keep coming back (with a sound and a desktop notification if allowed) every 30 seconds by default, on every reload. Acknowledging an alert hides it for 5 minutes, then it comes back. “Stop notifications” at the top silences everything until you turn it back on or reload the page. A new reading that pushes an indicator into amber or red triggers an alert straight away, in every open tab.": "Les alertes sont classées par gravité, puis par score actuel du risque : les plus critiques arrivent en premier. « M’avertir pour » choisit les risques qui déclenchent des notifications : critiques seulement (12+), élevés et critiques (8+) ou tous. Les alertes ouvertes s’affichent dès l’ouverture du tableau de bord et reviennent (avec un son et une notification du bureau si autorisée) toutes les 30 secondes par défaut, et à chaque rechargement. Acquitter une alerte la masque 5 minutes, puis elle revient. « Arrêter les notifications » en haut coupe tout jusqu’à ce que vous les réactiviez ou rechargiez la page. Une nouvelle mesure qui fait passer un indicateur à l’orange ou au rouge déclenche une alerte immédiatement, dans chaque onglet ouvert.", "Alerts before the risk hits": "Alertes avant que le risque ne frappe", "All": "Toutes", "All analysts": "Tous les analystes", "All client services stop; SLA penalties": "Tous les services clients s’arrêtent ; pénalités SLA", "All levels": "Tous les niveaux", "All risks": "Tous les risques", "Allow desktop notifications": "Autoriser les notifications du bureau", "Amber": "Orange", "An employee leaks or misuses client data": "Un salarié divulgue ou détourne des données clients", "Analyst": "Analyste", "Annual review and a backup supplier": "Revue annuelle et fournisseur de secours", "Assumptions": "Hypothèses", "Back to report score": "Revenir au score du rapport", "Backups held outside the main cloud account": "Sauvegardes hors du compte cloud principal", "Before": "Avant", "Before actions": "Avant actions", "Before any action": "Avant toute action", "Before any action,": "Avant toute action,", "Benefits": "Bénéfices", "Benefits beyond the numbers": "Bénéfices au-delà des chiffres", "Blocks most phishing and account-takeover attacks.": "Bloque la plupart des attaques par hameçonnage et des prises de contrôle de comptes.", "Breach attributed to NOVATECH": "Fuite imputée à NOVATECH", "Breaches handled within the legal deadline; client trust protected.": "Violations traitées dans le délai légal ; confiance des clients préservée.", "Broad access rights, no monitoring, overloaded staff": "Droits d’accès larges, aucune surveillance, équipes surchargées", "Buddy system and a backup for key roles": "Parrainage et suppléant pour les rôles clés", "CNIL sanction; EU and public clients lose trust": "Sanction CNIL ; perte de confiance des clients européens et publics", "Cap liability and SLA penalties in client contracts": "Plafonner responsabilité et pénalités SLA dans les contrats clients", "Cash shortfall": "Manque de trésorerie", "Category": "Catégorie", "Cause": "Cause", "Chance per year (%)": "Probabilité par an (%)", "Change the filter to see other alerts.": "Changez le filtre pour voir d’autres alertes.", "Choose your name": "Choisissez votre nom", "Clear a filter to see more.": "Retirez un filtre pour en voir plus.", "Click again to confirm reset": "Cliquez encore pour confirmer la réinitialisation", "Client data spread across cloud, tools and subcontractors": "Données clients dispersées entre cloud, outils et sous-traitants", "Client services restart in hours, not weeks.": "Les services clients redémarrent en quelques heures, pas en semaines.", "Clients": "Clients", "Close": "Fermer", "Compare scores": "Comparer les scores", "Consequence": "Conséquence", "Copy": "Copier", "Cost if it happens (€)": "Coût si cela arrive (€)", "Costs per action are team estimates. Risks overlap (one incident can trigger several), so the totals overstate combined loss: use them to compare and prioritise, not as a forecast.": "Les coûts par action sont des estimations de l’équipe. Les risques se recouvrent (un incident peut en déclencher plusieurs) : les totaux surestiment donc la perte combinée. Servez-vous-en pour comparer et prioriser, pas comme une prévision.", "Covers": "Couvre", "Crisis procedure and contact list": "Procédure de crise et liste de contacts", "Critical": "Critique", "Critical 12–16": "Critique 12–16", "Critical now": "Critique maintenant", "Critical risks only (score 12+)": "Risques critiques uniquement (score 12+)", "Critical:": "Critique :", "Cyber": "Cyber", "Cyber / HR": "Cyber / RH", "Cyber / IT": "Cyber / IT", "Cyber insurance and capped contract penalties (A6) transfer part of the financial shock away from the company.": "L’assurance cyber et le plafonnement des pénalités (A6) transfèrent une partie du choc financier hors de l’entreprise.", "Cyber insurance policy": "Police d’assurance cyber", "Data inventory": "Inventaire des données", "Data leak, GDPR exposure": "Fuite de données, exposition RGPD", "Data leakage, security gaps": "Fuites de données, failles de sécurité", "Data theft or sabotage": "Vol de données ou sabotage", "Delay, poor quality or supplier insolvency": "Retard, mauvaise qualité ou faillite du fournisseur", "Delivery SLAs and audit right": "SLA de livraison et droit d’audit", "Dependence and cash gaps seen months ahead.": "Dépendance et trous de trésorerie repérés des mois à l’avance.", "Direction": "Direction", "Disputes and penalties": "Litiges et pénalités", "Documented core processes": "Processus clés documentés", "Done": "Faite", "Dossier": "Dossier", "Download backup": "Télécharger une sauvegarde", "Each dot is a risk, placed in the slice of the analyst who found it. The closer to the centre, the higher the score. Select a dot to open it.": "Chaque point est un risque, placé dans la part de l’analyste qui l’a trouvé. Plus il est proche du centre, plus le score est élevé. Sélectionnez un point pour l’ouvrir.", "Each indicator’s owner logs one reading a week from the risk’s detail panel. Choose your name at the top so readings and clues show who logged them. Data is saved in this browser; use the backup buttons below to move it to another computer.": "Le responsable de chaque indicateur saisit une mesure par semaine depuis le panneau du risque. Choisissez votre nom en haut pour que mesures et indices indiquent qui les a saisis. Les données sont enregistrées dans ce navigateur ; utilisez les boutons de sauvegarde ci-dessous pour les transférer sur un autre ordinateur.", "Each line runs from the expected annual loss before action to the level after the plan. The dot shows today.": "Chaque ligne va de la perte annuelle attendue avant action jusqu’au niveau après le plan. Le point indique aujourd’hui.", "Each risk is scored Probability (1 rare – 4 almost certain) × Impact (1 minor – 4 critical), from 1 to 16. Critical is 12–16, high 8–11, moderate 5–7 and low 1–4. “Before” is the team’s assessment from the report, “After plan” is the residual score once every linked action is done, and “Now” moves between the two as actions are marked in progress (half) or done.": "Chaque risque est coté Probabilité (1 rare – 4 quasi certain) × Impact (1 mineur – 4 critique), de 1 à 16. Critique = 12–16, élevé = 8–11, modéré = 5–7 et faible = 1–4. « Avant » est l’évaluation de l’équipe dans le rapport, « Après le plan » le score résiduel une fois chaque action liée terminée, et « Maintenant » évolue entre les deux quand les actions passent en cours (moitié) ou faites.", "Early visibility for the Direction": "Visibilité précoce pour la Direction", "Early warning": "Alerte précoce", "Early warning:": "Alerte précoce :", "Early-warning indicators": "Indicateurs d’alerte précoce", "Effect": "Effet", "Effect on the linked risks": "Effet sur les risques liés", "Endpoint protection on all 85 laptops": "Protection des 85 ordinateurs portables", "Est. cost, year 1": "Coût estimé, année 1", "Event": "Événement", "Evidence only": "Simple constat", "Expected annual loss": "Perte annuelle attendue", "Expected annual loss = chance per year × cost if it happens. Change these to match the Direction’s view; everyone sees the update.": "Perte annuelle attendue = probabilité par an × coût si cela arrive. Modifiez ces valeurs selon l’avis de la Direction ; tout le monde voit la mise à jour.", "Expected annual loss per risk before action, today and after the plan": "Perte annuelle attendue par risque avant action, aujourd’hui et après le plan", "Expected loss falls to": "La perte attendue tombe à", "Expected loss is": "La perte attendue est de", "Expected loss per year, all 16 risks": "Perte attendue par an, 16 risques", "Filter alerts": "Filtrer les alertes", "Finance": "Finance", "Finance + Legal": "Finance + Juridique", "Financial": "Financier", "Follow-up of client payment terms": "Suivi des délais de paiement clients", "Former staff and over-privileged accounts can no longer leak data.": "Anciens salariés et comptes trop privilégiés ne peuvent plus faire fuiter de données.", "Former staff keep access to cloud and client systems": "D’anciens salariés gardent l’accès au cloud et aux systèmes clients", "From": "Source", "From dossier": "Du dossier", "GDPR compliance": "Conformité RGPD", "Get alerts on your phone": "Recevoir les alertes sur votre téléphone", "Governance": "Gouvernance", "Growth workload on existing teams": "Charge de la croissance sur les équipes existantes", "HR": "RH", "HR + IT": "RH + IT", "Heat map": "Carte de chaleur", "Heat map view": "Vue de la carte de chaleur", "Heavy cloud dependence, no tested recovery plan": "Forte dépendance au cloud, aucun plan de reprise testé", "Hide this alert for 5 minutes; it comes back after that and on every reload": "Masquer cette alerte 5 minutes ; elle revient ensuite et à chaque rechargement", "Hide until the next reminder": "Masquer jusqu’au prochain rappel", "High": "Élevé", "High 8–11": "Élevé 8–11", "High and critical (score 8+)": "Élevés et critiques (score 8+)", "High now": "Élevé maintenant", "Highlight critical risks": "Mettre en avant les risques critiques", "Highlight high risks": "Mettre en avant les risques élevés", "Highlight low risks": "Mettre en avant les risques faibles", "Highlight moderate risks": "Mettre en avant les risques modérés", "Highlight one level": "Mettre en avant un niveau", "Hiring and projects paid before clients pay": "Recrutements et projets payés avant que les clients ne paient", "Horizon": "Horizon", "How the dashboard works": "Fonctionnement du tableau de bord", "IT & cyber": "IT & cyber", "IT manager": "Responsable IT", "IT manager + Direction": "Responsable IT + Direction", "Impact": "Impact", "In progress": "En cours", "Indicator": "Indicateur", "Indicator in red": "Indicateur au rouge", "Indicators": "Indicateurs", "Indicators and thresholds": "Indicateurs et seuils", "Infrastructure strongly dependent on the cloud.": "Infrastructure fortement dépendante du cloud.", "Install the free": "Installez l’application gratuite", "Latest": "Dernière", "Leading indicators per risk, ranked by severity and risk score": "Indicateurs avancés par risque, classés par gravité et score", "Least privilege and admin-rights clean-up": "Moindre privilège et nettoyage des droits admin", "Least-privilege access with end dates": "Accès au moindre privilège avec date de fin", "Legal": "Juridique", "Legal & data": "Juridique & données", "Legal / DPO": "Juridique / DPO", "Legal / compliance": "Juridique / conformité", "Level": "Niveau", "Liability, penalty or data clauses not understood": "Clauses de responsabilité, de pénalités ou de données mal comprises", "Linked risks": "Risques liés", "Linked risks (up to 6):": "Risques liés (6 max.) :", "List of approved tools": "Liste des outils approuvés", "Live clue feed": "Fil d’indices en direct", "Live risk radar for the Direction, by Anish, Mereena, Sudheer, Fatah, Rambabu, Niranjan and Krishna": "Radar des risques en direct pour la Direction, par Anish, Mereena, Sudheer, Fatah, Rambabu, Niranjan et Krishna", "Live · saved on this device": "En direct · enregistré sur cet appareil", "Load a backup": "Charger une sauvegarde", "Log access to client data": "Journaliser les accès aux données clients", "Log clue": "Enregistrer l’indice", "Log reading": "Enregistrer la mesure", "Loss avoided / yr": "Perte évitée / an", "Low": "Faible", "Low 1–4": "Faible 1–4", "Low now": "Faible maintenant", "Lower Impact": "Baisser l’impact", "Lower Probability": "Baisser la probabilité", "Raise Impact": "Augmenter l’impact", "Raise Probability": "Augmenter la probabilité", "Lower cost of a bad day": "Un mauvais jour coûte moins cher", "MFA on every account": "MFA sur chaque compte", "Many arrivals and departures, contractors, no leaver process": "Beaucoup d’arrivées et de départs, des prestataires, aucun processus de sortie", "Missed deadlines, penalties, complaints": "Délais manqués, pénalités, réclamations", "Mistakes and lost know-how": "Erreurs et perte de savoir-faire", "Mitigation": "Atténuation", "Mitigation measures": "Mesures d’atténuation", "Mitigation plan": "Plan d’atténuation", "Mitigation progress": "Avancement du plan", "Mitigation:": "Atténuation :", "Moderate": "Modéré", "Moderate 5–7": "Modéré 5–7", "Moderate now": "Modéré maintenant", "Monthly review by the Direction": "Revue mensuelle par la Direction", "NOVATECH case file": "Dossier NOVATECH", "Name a DPO or data referent": "Nommer un DPO ou un référent données", "New EU clients with unfamiliar contract terms": "Nouveaux clients européens aux conditions contractuelles inhabituelles", "New hires work safely sooner; less burnout.": "Les recrues travaillent en sécurité plus vite ; moins d’épuisement.", "New tools deployed quickly": "Nouveaux outils déployés vite", "New value": "Nouvelle valeur", "No alerts at this level": "Aucune alerte à ce niveau", "No reading": "Aucune mesure", "No risks match": "Aucun risque ne correspond", "Not enough readings for a trend": "Pas assez de mesures pour une tendance", "Not started": "Non commencée", "Nothing is logged or linked": "Rien n’est enregistré ni relié", "Notifications": "Notifications", "Notifications off · turn on": "Notifications coupées · activer", "Notifications on": "Notifications activées", "Notify me for": "M’avertir pour", "Now": "Maintenant", "One place to log every incident and near-miss": "Un seul endroit pour noter chaque incident et quasi-incident", "Open": "Ouvrir", "Open alerts": "Alertes ouvertes", "Open it, tap": "Ouvrez-la, touchez", "Open risk": "Ouvrir le risque", "Operational": "Opérationnel", "Operational / IT": "Opérationnel / IT", "Overload and burnout": "Surcharge et épuisement", "Overview": "Vue d’ensemble", "Owner": "Responsable", "People": "RH", "Personal-data breach or GDPR non-compliance": "Violation de données personnelles ou non-conformité RGPD", "Phishing or ransomware attack": "Hameçonnage ou rançongiciel", "Phishing training at onboarding and every quarter": "Formation au hameçonnage à l’arrivée et chaque trimestre", "Phone alert channel": "Canal des alertes téléphone", "Phone alerts & help": "Alertes téléphone & aide", "Phone alerts: on": "Alertes téléphone : activées", "Set up phone alerts": "Configurer les alertes téléphone", "Phone reminder every": "Rappel téléphone toutes les", "Plan cost, year 1": "Coût du plan, année 1", "Probability": "Probabilité", "Probability (rows) × impact (columns). Click a risk for detail.": "Probabilité (lignes) × impact (colonnes). Cliquez sur un risque pour le détail.", "Probability by impact heat map": "Carte de chaleur probabilité × impact", "Processes and controls do not scale": "Processus et contrôles ne suivent pas", "Provider outage or locked cloud account": "Panne du fournisseur ou compte cloud bloqué", "Purchasing + IT": "Achats + IT", "Quality / risk lead": "Responsable qualité / risques", "Quality drops, SLA breaches, errors": "Baisse de qualité, SLA non tenus, erreurs", "Quarterly access review": "Revue trimestrielle des accès", "Raises impact +1": "Augmente l’impact +1", "Raises probability +1": "Augmente la probabilité +1", "Reassess:": "Réévaluer :", "Reassessed by the team:": "Réévalué par l’équipe :", "Recurring revenue protected": "Chiffre d’affaires récurrent protégé", "Red": "Rouge", "Reduce": "Réduire", "Reduce + transfer": "Réduire + transférer", "Reduce / monitor": "Réduire / surveiller", "Transfer": "Transférer", "Register of processing activities": "Registre des traitements", "Repeat every": "Répéter toutes les", "Reset to dossier data": "Revenir aux données du dossier", "Restore test every quarter": "Test de restauration chaque trimestre", "Return per €1": "Retour par euro", "Revenue +35% and 25 hires in two years": "CA +35 % et 25 recrues en deux ans", "Revenue share of the top 5 clients each month": "Part du CA des 5 premiers clients chaque mois", "Revenue up 35% in two years, to €12M.": "Chiffre d’affaires en hausse de 35 % en deux ans, à 12 M€.", "Risk": "Risque", "Risk radar: each dot is a risk; the closer to the centre, the higher its score": "Radar des risques : chaque point est un risque ; plus il est proche du centre, plus son score est élevé", "Risk register": "Registre des risques", "Risks by level now": "Risques par niveau aujourd’hui", "Safer, steadier teams": "Des équipes plus sûres et plus stables", "Save assumptions": "Enregistrer les hypothèses", "Saved at once; every open tab of the dashboard gets a pop-up.": "Enregistré aussitôt ; chaque onglet ouvert du tableau de bord reçoit une notification.", "Saved in this browser. Back it up to move it to another computer or share it with the team.": "Enregistré dans ce navigateur. Sauvegardez-le pour le transférer sur un autre ordinateur ou le partager avec l’équipe.", "Scenario": "Scénario", "Search risks": "Rechercher un risque", "Sections": "Sections", "Security and GDPR clauses": "Clauses sécurité et RGPD", "Security training in week one": "Formation sécurité dès la première semaine", "Send a test alert": "Envoyer une alerte test", "Send a test alert to my phone": "Envoyer une alerte test sur mon téléphone", "Send phone alerts": "Envoyer les alertes au téléphone", "Service continuity": "Continuité de service", "Several new digital tools deployed.": "Plusieurs nouveaux outils numériques déployés.", "Several subcontractors take part in client projects.": "Plusieurs sous-traitants participent aux projets clients.", "Sharp revenue drop": "Forte baisse du chiffre d’affaires", "Small incidents handled one by one": "Petits incidents traités un par un", "Sound": "Son", "Start-up co-pilot": "Copilote start-up", "Strategic": "Stratégique", "Structured onboarding, access control and workload monitoring (A7, A9) cut mistakes, insider risk and burnout.": "Une intégration structurée, le contrôle des accès et le suivi de la charge (A7, A9) réduisent erreurs, risque interne et épuisement.", "Subcontractors have access to client systems": "Les sous-traitants ont accès aux systèmes clients", "Subcontractors work on client projects": "Des sous-traitants travaillent sur les projets clients", "Subscribe": "S’abonner", "Summary": "Synthèse", "Supplier problems caught early and contained.": "Problèmes fournisseurs détectés tôt et contenus.", "Switch to light appearance": "Passer en mode clair", "Switch to dark appearance": "Passer en mode sombre", "Systems encrypted, delivery halted, recovery costs": "Systèmes chiffrés, livraisons stoppées, coûts de reprise", "Tap": "Touchez", "Team channel": "Canal de l’équipe", "The Direction notes a growing number of small incidents and unusual signals.": "La Direction constate un nombre croissant de petits incidents et de signaux inhabituels.", "The clue feed starts with the facts from the NOVATECH case file. During the session, log each new piece of information with where it came from (Direction, employees, IT, clients, suppliers, accounting or HR) and the risks it points to. A clue can be evidence only, or raise a risk’s probability or impact by one step; the score, heat map and alerts update for everyone at once. Indicators marked “From dossier” use the figures in the case file: 40% telework, 25 hires out of 85 staff, and 35% revenue growth.": "Le fil d’indices commence avec les faits du dossier NOVATECH. Pendant la séance, enregistrez chaque nouvelle information avec sa source (Direction, salariés, IT, clients, fournisseurs, comptabilité ou RH) et les risques qu’elle concerne. Un indice peut être un simple constat, ou augmenter d’un cran la probabilité ou l’impact d’un risque ; le score, la carte de chaleur et les alertes se mettent à jour pour tous aussitôt. Les indicateurs marqués « Du dossier » reprennent les chiffres du dossier : 40 % de télétravail, 25 recrues sur 85 salariés et 35 % de croissance du CA.", "The company is starting to work with European clients.": "L’entreprise commence à travailler avec des clients européens.", "The incident register (A3) and this dashboard turn scattered small incidents into trends the Direction reviews each month.": "Le registre des incidents (A3) et ce tableau de bord transforment de petits incidents épars en tendances que la Direction examine chaque mois.", "The nine actions come from the team’s action plan. Expected annual loss = chance per year × cost if it happens (see Assumptions on the Benefits tab). The loss avoided by a risk’s mitigation is split equally between the actions that cover it. Costs are year-one estimates.": "Les neuf actions viennent du plan d’action de l’équipe. Perte annuelle attendue = probabilité par an × coût si cela arrive (voir Hypothèses dans l’onglet Bénéfices). La perte évitée pour un risque est répartie à parts égales entre les actions qui le couvrent. Les coûts sont des estimations pour la première année.", "The weakest site exposes everyone": "Le site le plus faible expose tout le monde", "Their account is compromised or data misused": "Leur compte est compromis ou les données détournées", "Third-party": "Tiers", "Third-party / cyber": "Tiers / cyber", "Three agencies working differently": "Trois agences aux pratiques différentes", "Three agencies: Nantes, Angers and Rennes; 230 active clients.": "Trois agences : Nantes, Angers et Rennes ; 230 clients actifs.", "Today": "Aujourd’hui", "Tools & sites": "Outils & sites", "Treatment": "Traitement", "Trend report across the three sites": "Rapport de tendance sur les trois sites", "Unapproved apps, poor settings, forgotten accounts": "Applications non approuvées, mauvais réglages, comptes oubliés", "Uneven security and quality practices": "Pratiques de sécurité et de qualité inégales", "Uptime clause with the cloud provider": "Clause de disponibilité avec l’hébergeur cloud", "Use a plain number, for example 12 or 99.95.": "Saisissez un nombre simple, par exemple 12 ou 99.95.", "Values marked “From dossier” come from the NOVATECH file. Log a value from a risk’s panel when a clue gives one; alerts update for everyone straight away.": "Les valeurs marquées « Du dossier » viennent du dossier NOVATECH. Saisissez une valeur depuis le panneau d’un risque quand un indice en donne une ; les alertes se mettent à jour pour tous immédiatement.", "Warning": "Avertissement", "Warning:": "Avertissement :", "Weak onboarding, or a key person leaves": "Intégration faible, ou départ d’une personne clé", "Weak signals become visible before they add up.": "Les signaux faibles deviennent visibles avant de s’accumuler.", "Where the clue came from": "Origine de l’indice", "Where the plan cuts expected loss": "Où le plan réduit la perte attendue", "Which risks could put NOVATECH in difficulty today?": "Quels risques pourraient mettre NOVATECH en difficulté aujourd’hui ?", "Who is using the dashboard": "Qui utilise le tableau de bord", "With tested backups and a recovery plan (A2), an outage or ransomware attack stops services for hours instead of weeks.": "Avec des sauvegardes testées et un plan de reprise (A2), une panne ou un rançongiciel arrête les services quelques heures au lieu de plusieurs semaines.", "Working-capital squeeze": "Tension sur le besoin en fonds de roulement", "Workload monitoring": "Suivi de la charge de travail", "Works while you travel: your phone gets a push notification even when the dashboard is closed on it.": "Fonctionne en déplacement : votre téléphone reçoit une notification même quand le tableau de bord y est fermé.", "Written 72-hour breach procedure": "Procédure écrite de notification de violation en 72 heures", "You are": "Vous êtes", "Your data": "Vos données", "Your phone is alerted when a logged reading turns an indicator amber or red, when a clue is logged (marked urgent if it makes a risk critical), as soon as the dashboard is opened or reloaded, and then with a reminder of open alerts every": "Votre téléphone est alerté quand une mesure fait passer un indicateur à l’orange ou au rouge, quand un indice est enregistré (marqué urgent s’il rend un risque critique), dès que le tableau de bord est ouvert ou rechargé, puis par un rappel des alertes ouvertes toutes les", "app on your phone: Google Play or App Store, search “ntfy”.": "sur votre téléphone : Google Play ou App Store, cherchez « ntfy ».", "before the plan.": "avant le plan.", "below. Your phone should buzz within a few seconds.": "ci-dessous. Votre téléphone devrait vibrer en quelques secondes.", "from the NOVATECH dossier": "du dossier NOVATECH", "just now": "à l’instant", "need attention.": "demandent votre attention.", "needs attention.": "demande votre attention.", "no reading yet": "pas encore de mesure", "no risk stays above moderate": "aucun risque ne dépasse le niveau modéré", "once all nine actions are done.": "une fois les neuf actions terminées.", "past amber. The alert says how many weeks remain before red at the current rate.": "seuil orange dépassé. L’alerte indique combien de semaines restent avant le rouge au rythme actuel.", "right now.": "en ce moment.", "still in range, but the trend over the last four readings reaches amber within six weeks.": "encore dans la norme, mais la tendance des quatre dernières mesures atteint l’orange d’ici six semaines.", "the indicator is past red. Act now.": "l’indicateur a dépassé le rouge. Agissez maintenant.", "until the alerts are acknowledged or notifications are stopped. The free ntfy.sh service allows only a limited number of alerts a day, so use 10 s for the demo and a slower setting the rest of the time. Everyone who subscribes to the channel gets the alerts, so share it only with the team.": "jusqu’à ce que les alertes soient acquittées ou les notifications coupées. Le service gratuit ntfy.sh limite le nombre d’alertes par jour : utilisez 10 s pour la démo et un réglage plus lent le reste du temps. Toute personne abonnée au canal reçoit les alertes : partagez-le uniquement avec l’équipe.", "Improving, but not yet safe.": "S’améliore, mais pas encore sûr.", "Not moving.": "Stable.", "Still getting worse.": "Continue de se dégrader.", "Access changed": "Accès modifié", "All clear": "Tout est en ordre", "Almost certain": "Quasi certain", "Back to the facts from the NOVATECH dossier.": "Retour aux faits du dossier NOVATECH.", "Backup loaded": "Sauvegarde chargée", "Could not send: check the internet connection": "Envoi impossible : vérifiez la connexion internet", "Each chance must be between 0 and 100%.": "Chaque probabilité doit être comprise entre 0 et 100 %.", "Each cost must be between €0 and €100M.": "Chaque coût doit être compris entre 0 € et 100 M€.", "Getting worse": "Se dégrade", "Indicator readings are not available in this view": "Les mesures ne sont pas disponibles dans cette vue", "No indicator needs attention at your notification level.": "Aucun indicateur à surveiller à votre niveau de notification.", "Not loaded": "Non chargé", "Not saved": "Non enregistré", "Phone alerts paused for 10 minutes": "Alertes téléphone en pause pendant 10 minutes", "Reset done": "Réinitialisation effectuée", "Sent: check your phone": "Envoyé : regardez votre téléphone", "Sending…": "Envoi…", "Something went wrong while saving. Try again.": "Un problème est survenu à l’enregistrement. Réessayez.", "Storage blocked in this browser": "Stockage bloqué dans ce navigateur", "Storage full": "Stockage plein", "Test alert from NOVATECH Risk Watch": "Alerte test de NOVATECH Risk Watch", "That file is not a NOVATECH Risk Watch backup.": "Ce fichier n’est pas une sauvegarde NOVATECH Risk Watch.", "That file is too large to be a dashboard backup.": "Ce fichier est trop volumineux pour être une sauvegarde.", "The connection dropped. Try again in a moment.": "La connexion a été perdue. Réessayez dans un instant.", "The dashboard has reached its storage limit. Remove old readings before adding more.": "Le tableau de bord a atteint sa limite de stockage. Supprimez d’anciennes mesures avant d’en ajouter.", "The dashboard now shows the data from your backup.": "Le tableau de bord affiche maintenant les données de votre sauvegarde.", "The value cannot be negative.": "La valeur ne peut pas être négative.", "This browser refused to save the change.": "Ce navigateur a refusé d’enregistrer la modification.", "This view can no longer reach the shared data.": "Cette vue ne peut plus accéder aux données partagées.", "Values must rise from level 1 to level 4.": "Les valeurs doivent augmenter du niveau 1 au niveau 4.", "ntfy.sh says too many alerts were sent. Choose a slower phone reminder to avoid this.": "ntfy.sh indique que trop d’alertes ont été envoyées. Choisissez un rappel plus lent pour l’éviter.", "Example": "Exemple", "Loading…": "Chargement…", "Connecting…": "Connexion…", "Loading indicator readings…": "Chargement des mesures…", "Alerts appear here as soon as readings arrive.": "Les alertes s’affichent ici dès que les mesures arrivent.", "Readings can’t be saved in this browser": "Les mesures ne peuvent pas être enregistrées dans ce navigateur", "This browser blocks local storage (for example a private window). Open the dashboard in a normal window.": "Ce navigateur bloque le stockage local (par exemple en navigation privée). Ouvrez le tableau de bord dans une fenêtre normale.", "Every indicator for these risks is in range. Log weekly readings to keep it that way.": "Tous les indicateurs de ces risques sont dans la norme. Saisissez des mesures chaque semaine pour que cela dure.", "Desktop notifications": "Notifications du bureau", "Desktop notifications blocked in browser settings": "Notifications du bureau bloquées dans les réglages du navigateur", "Dismiss": "Ignorer", "In range": "Dans la norme", "not started": "non commencée", "in progress": "en cours", "done": "faite", "all planned actions done — review the risk": "toutes les actions prévues sont faites — réévaluez le risque", "critical": "critique", "high": "élevé", "moderate": "modéré", "low": "faible", "red": "rouge", "amber": "orange", "Contain": "Contenir", "Contain all": "Tout contenir", "Open dashboard": "Ouvrir le tableau de bord", "Reopen": "Rouvrir", "From phone": "Depuis un téléphone", "From dashboard": "Depuis le tableau de bord", "Incident response": "Réponse à incident", "Contained risks and the steps run. An alert comes back if a new reading is still past its threshold.": "Risques contenus et étapes exécutées. Une alerte revient si une nouvelle mesure dépasse encore son seuil.", "Run the response playbook: stop the alert, start the linked actions and log the incident": "Lancer le plan de réponse : arrêter l’alerte, démarrer les actions liées et enregistrer l’incident", "Each risk alert on your phone has a": "Chaque alerte de risque sur votre téléphone a un bouton", "button. Tapping it makes every open dashboard run that risk’s response playbook: the alert stops, the linked actions start, the incident is logged and your phone gets a confirmation.": ". En le touchant, chaque tableau de bord ouvert lance le plan de réponse de ce risque : l’alerte s’arrête, les actions liées démarrent, l’incident est enregistré et votre téléphone reçoit une confirmation.", "Assign an owner and open an incident": "Désigner un responsable et ouvrir un incident", "Contain the immediate cause": "Contenir la cause immédiate", "Inform the Direction": "Informer la Direction", "Switch client services to the recovery plan": "Basculer les services clients sur le plan de reprise", "Restore critical data from the off-cloud backup": "Restaurer les données critiques depuis la sauvegarde hors cloud", "Open a priority ticket with the cloud provider": "Ouvrir un ticket prioritaire chez l’hébergeur cloud", "Tell affected clients and give a recovery time": "Prévenir les clients touchés et annoncer un délai de reprise", "Force a password reset on all accounts": "Forcer la réinitialisation des mots de passe de tous les comptes", "Revoke active sessions and lock suspicious accounts": "Révoquer les sessions actives et bloquer les comptes suspects", "Isolate infected laptops from the network": "Isoler du réseau les ordinateurs infectés", "Block sign-ins from unusual countries": "Bloquer les connexions depuis des pays inhabituels", "Revoke leaked links and shared access": "Révoquer les liens et partages divulgués", "Freeze bulk data exports": "Geler les exports massifs de données", "Start the 72-hour CNIL notification clock": "Lancer le délai de notification CNIL de 72 heures", "Preserve logs for the investigation": "Conserver les journaux pour l’enquête", "Activate the backup supplier": "Activer le fournisseur de secours", "Re-plan deadlines with affected clients": "Replanifier les délais avec les clients concernés", "Hold payments until delivery is confirmed": "Suspendre les paiements jusqu’à confirmation de livraison", "Suspend the subcontractor’s accounts": "Suspendre les comptes du sous-traitant", "Rotate shared passwords and API keys": "Changer les mots de passe partagés et les clés API", "Ask the supplier for an incident report within 24 h": "Demander au fournisseur un rapport d’incident sous 24 h", "Director calls the client within 24 h": "Le directeur appelle le client sous 24 h", "Offer a recovery plan and a service credit": "Proposer un plan de rétablissement et un avoir", "Review renewal dates of the other top clients": "Revoir les dates de renouvellement des autres grands clients", "Freeze non-essential new projects for a week": "Geler les nouveaux projets non essentiels pendant une semaine", "Name an owner for each failing process": "Nommer un responsable pour chaque processus défaillant", "Review open incidents with the Direction": "Revoir les incidents ouverts avec la Direction", "Pause admin rights for untrained new hires": "Suspendre les droits admin des recrues non formées", "Run the security induction this week": "Organiser la formation sécurité cette semaine", "Pair each new hire with a buddy": "Associer chaque recrue à un parrain", "Log every recent incident in the register": "Inscrire chaque incident récent au registre", "Hold an emergency risk review": "Tenir une revue des risques d’urgence", "Give each incident an owner": "Donner un responsable à chaque incident", "Redistribute urgent work across teams": "Répartir le travail urgent entre les équipes", "Stop overtime for the most loaded staff": "Arrêter les heures supplémentaires des plus chargés", "HR check-in with affected teams": "Point RH avec les équipes concernées", "Chase overdue invoices today": "Relancer aujourd’hui les factures en retard", "Postpone non-essential spending": "Reporter les dépenses non essentielles", "Ask the bank for a short-term credit line": "Demander à la banque une ligne de crédit court terme", "Stop signing new EU contracts until legal review": "Ne plus signer de contrats UE avant revue juridique", "Legal review of the clauses in force": "Revue juridique des clauses en vigueur", "Notify the insurer of possible claims": "Prévenir l’assureur d’éventuelles réclamations", "Block the unapproved apps": "Bloquer les applications non approuvées", "Export company data out of them": "En extraire les données de l’entreprise", "Remind staff of the approved tools list": "Rappeler la liste des outils approuvés", "Run the security checklist on the failing site": "Passer la check-list sécurité sur le site défaillant", "Apply the common baseline settings": "Appliquer les réglages de base communs", "Name a site security contact": "Nommer un référent sécurité sur le site", "Disable all accounts of people who left": "Désactiver tous les comptes des personnes parties", "Rotate shared passwords": "Changer les mots de passe partagés", "Check logs for logins after leaving dates": "Vérifier les connexions après les dates de départ", "Suspend the suspected account": "Suspendre le compte suspect", "Remove excess admin rights": "Retirer les droits admin superflus", "Preserve logs and inform HR and Legal": "Conserver les journaux et informer les RH et le Juridique", "Owner:": "Responsable :", "· Analyst:": "· Analyste :", "· First step:": "· Première étape :", "Accountable:": "Responsable :", "Risk analyst:": "Analyste du risque :", "·": "·", "Who acts": "Qui agit", "Accountable owner": "Responsable désigné", "Risk analyst (team)": "Analyste du risque (équipe)", "Mitigation owners": "Responsables des actions", "Response playbook": "Plan de réponse", "Run playbook again": "Relancer le plan", "Contain now": "Contenir maintenant", "Run playbook": "Lancer le plan", "Purchasing": "Achats", "Sales director": "Directeur commercial", "Site managers": "Responsables de site", "IT support": "Support IT", "Project managers": "Chefs de projet", "Team leads": "Chefs d’équipe", "Finance, Legal": "Finance, Juridique", "Mark done": "Marquer fait", "Closed": "Clôturé", "Laptops isolated": "Ordinateurs isolés", "Phones alerted": "Téléphones alertés", "Each step is sent to the phone of the person who must do it. Their “Done” button ticks it here for everyone.": "Chaque étape est envoyée sur le téléphone de la personne qui doit la faire. Son bouton « Fait » la coche ici pour tout le monde.", "Every team member gets their own alerts": "Chaque membre de l’équipe reçoit ses propres alertes", "Each person subscribes to their own channel in the ntfy app. Alerts go to the people responsible for the risk, and during an incident each person receives their own task with a “Done” button.": "Chaque personne s’abonne à son propre canal dans l’application ntfy. Les alertes vont aux responsables du risque et, pendant un incident, chacun reçoit sa propre tâche avec un bouton « Fait ».", "Team member": "Membre de l’équipe", "Plays the role of": "Joue le rôle de", "Personal channel": "Canal personnel", "Test": "Tester", "Sent": "Envoyé", "Failed": "Échec", "Copied": "Copié", "Copy failed": "Copie impossible", "Risk analyst": "Analyste du risque", "risk analyst": "analyste du risque", "the team": "l’équipe", "Demo: the infected laptop shuts down": "Démo : l’ordinateur infecté s’éteint", "the demo laptop page": "la page de l’ordinateur de démonstration", "on a second computer and click “Start”. When someone contains a cyberattack (R2), a supplier breach (R5) or an insider threat (R16), that computer turns red, counts down and shuts its screen off. “Reopen” brings it back.": "sur un second ordinateur et cliquez sur « Démarrer ». Quand quelqu’un contient une cyberattaque (R2), une faille fournisseur (R5) ou une menace interne (R16), cet ordinateur passe au rouge, lance un compte à rebours et éteint son écran. « Rouvrir » le remet en service.", "To really lock a Windows computer as well, download the": "Pour verrouiller aussi réellement un ordinateur Windows, téléchargez l’", "device agent": "agent de poste", "(device-agent.bat and device-agent.ps1, same folder) and double-click device-agent.bat. It locks the session when the computer is isolated; started with -Shutdown it shuts the computer down after 60 seconds (cancel with “shutdown /a”).": "(device-agent.bat et device-agent.ps1, même dossier) et double-cliquez sur device-agent.bat. Il verrouille la session quand l’ordinateur est isolé ; lancé avec -Shutdown, il éteint l’ordinateur après 60 secondes (annulation : « shutdown /a »).", "Radar logbook": "Journal du radar", "Shared live": "Partagé en direct", "This computer": "Cet ordinateur", "Someone": "Quelqu’un", "A teammate": "Un coéquipier", "Nothing logged yet. Mark an action done or log an indicator: the dot moves on every dashboard.": "Rien d’enregistré pour l’instant. Marquez une action faite ou saisissez un indicateur : le point bouge sur tous les tableaux de bord.", "Indicator logged": "Indicateur saisi", "Score reassessed": "Score réévalué", "New clue logged": "Nouvel indice enregistré", "Containment started": "Confinement lancé", "Score changed": "Score modifié", "Live · team database (Redis)": "En direct · base d’équipe (Redis)", "Saving to the team database…": "Enregistrement dans la base d’équipe…", "Connecting to the team database…": "Connexion à la base d’équipe…", "Team database unreachable · saved here": "Base d’équipe injoignable · enregistré ici", "Team database (Redis)": "Base de données d’équipe (Redis)", "One shared database for the whole team: a reading or a finished action logged on any laptop appears on every dashboard within a few seconds, and the radar moves.": "Une seule base partagée pour toute l’équipe : une mesure ou une action terminée saisie sur n’importe quel ordinateur apparaît sur tous les tableaux de bord en quelques secondes, et le radar bouge.", "Off. This computer keeps its own data.": "Désactivée. Cet ordinateur garde ses propres données.", "The AI server has no Redis database yet, so each computer keeps its own data. Follow the three steps below once.": "Le serveur IA n’a pas encore de base Redis : chaque ordinateur garde ses propres données. Suivez une fois les trois étapes ci-dessous.", "Sync now": "Synchroniser", "Connect": "Connecter", "Use this computer only": "Utiliser cet ordinateur seulement", "Use the team database": "Utiliser la base d’équipe", "Server status page": "Page d’état du serveur", "Create a free Redis database at": "Créez une base Redis gratuite sur", "(Upstash). Any region near Paris.": "(Upstash). Choisissez une région proche de Paris.", "Open the database, section": "Ouvrez la base, section", ", and copy the two values": ", et copiez les deux valeurs", "and": "et", "In Cloudflare open the worker": "Dans Cloudflare, ouvrez le worker", "→ Settings → Variables and Secrets → Add, type Secret, with those two names and values. Click Deploy, then press Connect here.": "→ Settings → Variables and Secrets → Add, type Secret, avec ces deux noms et valeurs. Cliquez sur Deploy, puis sur Connecter ici.", "No answer from the server": "Pas de réponse du serveur", "Hand control": "Contrôle à la main", "Turn off": "Arrêter", "How to": "Mode d’emploi", "Point with your index finger. Pinch thumb and index to click. Close your fist to go back. Point at the top or bottom edge to scroll.": "Pointez avec l’index. Pincez pouce et index pour cliquer. Fermez le poing pour revenir. Pointez le bord haut ou bas pour défiler.", "Starting the camera…": "Démarrage de la caméra…", "Allow the camera when the browser asks. The video stays on this device.": "Autorisez la caméra quand le navigateur le demande. La vidéo reste sur cet appareil.", "Loading hand tracking…": "Chargement du suivi de la main…", "The first time takes a few seconds.": "La première fois prend quelques secondes.", "Hand control is on": "Contrôle à la main activé", "Show your hand to the camera. Pinch to click, fist to go back.": "Montrez votre main à la caméra. Pincez pour cliquer, poing pour revenir.", "Camera permission was refused. Allow the camera for this site in the address bar, then try again.": "L’accès à la caméra a été refusé. Autorisez la caméra pour ce site dans la barre d’adresse, puis réessayez.", "No camera was found on this device.": "Aucune caméra trouvée sur cet appareil.", "The camera is used by another app. Close it and try again.": "La caméra est utilisée par une autre application. Fermez-la et réessayez.", "This browser cannot use the camera here.": "Ce navigateur ne peut pas utiliser la caméra ici.", "Hand tracking could not load. It needs an internet connection the first time.": "Le suivi de la main n’a pas pu se charger. Il faut une connexion internet la première fois.", "Hand control is off": "Contrôle à la main désactivé", "Hand control: point, pinch to click, fist to go back": "Contrôle à la main : pointez, pincez pour cliquer, poing pour revenir", "See every risk as a poster": "Chaque risque en affiche", "The story site shows what each risk looks like, with the same live numbers.": "Le site vitrine montre à quoi ressemble chaque risque, avec les mêmes chiffres en direct.", "Search a risk, indicator or action": "Rechercher un risque, un indicateur ou une action", "Type at least two letters.": "Tapez au moins deux lettres.", "No risk matches.": "Aucun risque ne correspond.", "Risk summary": "Synthèse des risques", "Where NOVATECH stands right now. Select a level to light it up on the radar.": "Où en est NOVATECH maintenant. Sélectionnez un niveau pour l’allumer sur le radar.", "+ Log a clue": "+ Ajouter un indice", "Critical risks": "Risques critiques", "High risks": "Risques élevés", "Moderate risks": "Risques modérés", "Low risks": "Risques faibles", "Timeline of the year": "Calendrier de l’année", "The nine mitigation actions over the plan year. Grey: not started · orange: in progress · green: done.": "Les neuf actions du plan sur l’année. Gris : non commencée · orange : en cours · vert : faite.", "Recent activity": "Activité récente", "Team members": "Membres de l’équipe", "Your tasks today": "Vos tâches du jour", "Team": "Équipe", "Nothing yet. Readings, clues and containments appear here for everyone.": "Rien pour l’instant. Mesures, indices et confinements apparaissent ici pour tout le monde.", "Choose your name in “You are” to see your tasks.": "Choisissez votre nom dans « Vous êtes » pour voir vos tâches.", "Nothing waiting for you. Well done.": "Rien ne vous attend. Bravo.", "CEO decision": "Décision du PDG", "Mitigation action": "Action du plan", "Decide": "Décider", "You": "Vous", "CEO": "PDG", "The sixteen, as they look": "Les seize, en images", "Ranked by today’s score, most dangerous first. Point at a poster to see it; select it to open the risk.": "Classés par score du jour, le plus dangereux en premier. Pointez une affiche pour la voir ; sélectionnez-la pour ouvrir le risque.", "Open the story site": "Ouvrir le site vitrine", "Story site": "Site vitrine", "Contained": "Contenu", "Waiting for the CEO": "En attente du PDG", "risk watch": "risk watch", "Open the dashboard": "Ouvrir le tableau de bord", "DOSSIER DATA": "DONNÉES DU DOSSIER", "LIVE DATA": "DONNÉES EN DIRECT", "Live release, autumn 2026": "Sortie en direct, automne 2026", "NOVATECH Services": "NOVATECH Services", "hero-p1": "Chiffre d’affaires +35 % en deux ans, 25 recrues, trois agences et beaucoup plus de cloud. La croissance a amené seize risques.", "hero-p2": "Sept analystes les surveillent sur un seul radar en direct. Chaque point est un risque ; plus il est près du centre, plus il est dangereux.", "Meet the sixteen": "Découvrir les seize", "The radar right now": "Le radar en ce moment", "risks are critical right now": "risques critiques en ce moment", "expected loss a year at today's progress": "de perte attendue par an, au niveau d’avancement actuel", "early-warning alerts open": "alertes précoces ouvertes", "Figures from the NOVATECH dossier": "Chiffres du dossier NOVATECH", "Live from the team database, updated": "En direct depuis la base de l’équipe, mis à jour à", "of staff can telework": "des salariés peuvent télétravailler", "revenue in two years": "de CA en deux ans", "hires in two years": "recrues en deux ans", "Watched all year round": "Surveillés toute l’année", "The sixteen": "Les seize", "lineup-note": "Chaque capsule est un risque, rangée avec l’analyste qui l’a trouvé. Plus elle est haute, plus le score est élevé (probabilité × impact, de 1 à 16). Passez à « Après le plan » pour voir le plan d’action les réduire, et sélectionnez-en une pour l’ouvrir.", "Contain it": "Contenir", "See a cyberattack contained, from alert to approval": "Une cyberattaque contenue, de l’alerte à la validation", "An indicator crosses its threshold": "Un indicateur franchit son seuil", "step1": "Le tableau de bord alerte les responsables sur leur téléphone avant que le risque ne devienne un incident.", "The CEO approves": "Le PDG valide", "step2": "Contenir peut arrêter des services et bloquer des ordinateurs : la demande part sur le téléphone du PDG avec ce qui est en jeu.", "Everyone gets their task": "Chacun reçoit sa tâche", "step3": "Chaque étape du plan va à la personne qui en est responsable. Son bouton Fait la coche sur tous les écrans.", "The infected laptop goes dark": "L’ordinateur infecté s’éteint", "step4": "Pour une cyberattaque, l’ordinateur de démonstration s’isole, comme le ferait un outil de sécurité des postes.", "Every hour": "Chaque heure", "counts": "compte", "Pick an incident": "Choisissez un incident", "Contained after": "Contenu après", "at the alert": "à l’alerte", "1 day": "1 jour", "2 days": "2 jours", "3 days": "3 jours", "Damage already done": "Dommages déjà subis", "Loss avoided by containing": "Perte évitée grâce au confinement", "Worst case if nothing is done": "Pire scénario sans action", "of the worst case already lost": "du pire scénario déjà perdus", "Each hour of delay costs about": "Chaque heure de retard coûte environ", "Without action this risk reaches its full cost in about": "Sans action, ce risque atteint son coût total en environ", "days": "jours", "at once": "tout de suite", "Made in Angers by": "Fait à Angers par", "Seven analysts": "Sept analystes", "also plays the CEO": "joue aussi le PDG", "Your turn": "À vous", "Watch it live": "En direct", "foot1": "ESAIP, gestion des risques, cas NOVATECH « Risk Detective ». Anish, Mereena, Sudheer, Fatah, Rambabu, Krishna, Niranjan.", "Source on GitHub": "Code source sur GitHub", "Risk Watch": "Risk Watch", "Every hour counts": "Chaque heure compte", "The team": "L’équipe", "Risk radar": "Radar des risques", "score": "score", "If it happens": "Si cela arrive", "What lowers it": "Ce qui le réduit", "went down": "a baissé", "went up": "a monté", "Play again": "Rejouer", "Approve": "Valider", "Reject": "Refuser", "Done: step 3": "Fait : étape 3", "R2 Cyberattack": "R2 Cyberattaque", "Staff who can telework: 40%, past amber.": "Salariés pouvant télétravailler : 40 %, seuil orange dépassé.", "Anish asked the CEO to contain R2": "Anish demande au PDG de contenir R2", "Damage so far ≈ €96k, each hour of waiting ≈ €15k.": "Dommages ≈ 96 k€, chaque heure d’attente ≈ 15 k€.", "Approved by Krishna (CEO)": "Validé par Krishna (PDG)", "Containment started after 2 min.": "Confinement lancé après 2 min.", "Niranjan: your task for R2": "Niranjan : votre tâche pour R2", "3. Isolate infected laptops from the network": "3. Isoler du réseau les ordinateurs infectés", "LAPTOP-07 isolated": "LAPTOP-07 isolé", "Network access cut. Shutting down.": "Accès réseau coupé. Arrêt en cours.", "Incident closed: R2": "Incident clôturé : R2", "Loss avoided ≈ €1.1M.": "Perte évitée ≈ 1,1 M€.", "Search the risks": "Rechercher un risque", "Search": "Rechercher", "Home": "Accueil", "Right now": "En ce moment", "Dossier figures": "Chiffres du dossier", "Live team data": "Données de l’équipe en direct", "The sixteen NOVATECH risks": "Les seize risques de NOVATECH", "Ranked by today's score, most dangerous first. Select a poster to open it.": "Classés par score du jour, le plus dangereux en premier. Sélectionnez une affiche pour l’ouvrir.", "No risk matches that search.": "Aucun risque ne correspond à cette recherche.", "Matching risks are lit up.": "Les risques correspondants sont allumés.", "Score now": "Score actuel", "Watch the response": "Voir la réponse", "Gallery": "Galerie", "Open in the dashboard": "Ouvrir dans le tableau de bord", "Back": "Retour", "What happens": "Ce qui arrive", "The damage": "Les dégâts", "Early warnings": "Signaux d’alerte", "Play the response": "Lancer la réponse", "From the first alert to the incident closed": "De la première alerte à l’incident clôturé", "past its threshold": "seuil dépassé", "An early warning went off.": "Un signal d’alerte s’est déclenché.", "{a} asked the CEO to contain {r}": "{a} demande au PDG de contenir {r}", "Damage so far": "Dommages", "each hour of waiting": "chaque heure d’attente", "Approved by {c} (CEO)": "Validé par {c} (PDG)", "Containment started.": "Confinement lancé.", "{p}: your task for {r}": "{p} : votre tâche pour {r}", "Done: step 1": "Fait : étape 1", "Incident closed: {r}": "Incident clôturé : {r}", "Loss avoided": "Perte évitée", "No change logged yet": "Aucun changement enregistré", "Also plays the CEO": "Joue aussi le PDG", "The incident is closed": "L’incident est clôturé", "now-lead": "NOVATECH a grandi de 35 % en deux ans avec 25 recrues, trois agences et plus de cloud. Voici les chiffres du jour issus du tableau de bord de l’équipe.", "contain-lead": "Ce qui se passe sur les téléphones de l’équipe quand une cyberattaque est repérée, de la première alerte à l’incident clôturé.", "cost-lead": "Faites glisser le curseur : plus un incident est contenu tard, plus une part de son pire scénario est déjà perdue.", "team-lead": "Sept analystes, chacun sa part du radar. Sélectionnez une affiche pour ouvrir le risque.", "step4b": "Pour une cyberattaque, l’ordinateur de démonstration s’isole ; quand toutes les étapes sont faites, la perte évitée est acquise.", "__en": {"now-lead": "NOVATECH grew 35% in two years with 25 new hires, three agencies and more cloud. These are today's numbers from the team dashboard.", "contain-lead": "What happens on the team's phones when a cyberattack is spotted, from the first alert to the incident closed.", "cost-lead": "Drag the slider: the later an incident is contained, the more of its worst case is already lost.", "team-lead": "Seven analysts, one slice of the radar each. Select a poster to open the risk.", "step4b": "For a cyberattack the demo laptop isolates itself; when every step is done the loss avoided is secured.", "hero-p1": "Revenue up 35% in two years, 25 new hires, three agencies and a lot more cloud. Growth brought sixteen risks with it.", "hero-p2": "Seven analysts watch them on one live radar. Every dot is a risk; the closer to the centre, the more dangerous.", "lineup-note": "Each capsule is a risk, standing with the analyst who found it. Taller means a higher score (likelihood × impact, 1 to 16). Switch to “After plan” to watch the mitigation plan shrink them, and select one to open it.", "step1": "The dashboard alerts the people responsible on their phones before the risk turns into an incident.", "step2": "Containing can stop services and lock laptops, so the request goes to the CEO’s phone with what is at stake.", "step3": "Each step of the playbook goes to the person who owns it. Their Done button ticks it on every screen.", "step4": "For a cyberattack, the demo laptop isolates itself, just like an endpoint-security tool would.", "foot1": "ESAIP Risk Management, NOVATECH “Risk Detective” case. Anish, Mereena, Sudheer, Fatah, Rambabu, Krishna, Niranjan."}};
+const API = 'https://novatech-risk-watch.psaianish2001.workers.dev/db';
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+/* "html" is only ever given poster markup built by posterSVG from constant art and escaped titles */
+const el = (tag, props, ...kids) => { const n = document.createElement(tag); if (props) for (const [k, v] of Object.entries(props)) { if (v == null || v === false) continue; if (k === 'class') n.className = v; else if (k === 'text') n.textContent = v; else if (k === 'html') n.innerHTML = v; else if (k.startsWith('on')) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v === true ? '' : v); } for (const c of kids.flat()) if (c != null && c !== false) n.append(c.nodeType ? c : document.createTextNode(String(c))); return n; };
+const lc = x => /^[A-Z][a-z]/.test(x) ? x[0].toLowerCase() + x.slice(1) : x;   /* keeps acronyms such as SLA or GDPR */
+const reduce = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const PLAY_SVG = '<svg width="30" height="30" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+
+/* language */
+let lang = 'en'; try { if (localStorage.getItem('nrw-story-lang') === 'fr') lang = 'fr'; } catch (e) {}
+const t = s => (lang === 'fr' && FR[s] != null) ? FR[s] : (FR.__en[s] || s);
+function applyLang(){
+  document.documentElement.lang = lang;
+  $$('[data-t]').forEach(n => { n.textContent = t(n.dataset.t); });
+  $$('[data-tp]').forEach(n => { n.placeholder = t(n.dataset.tp); });
+  $$('.lang button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === lang)));
+  renderAll(true);
+}
+$$('.lang button').forEach(b => b.addEventListener('click', () => { lang = b.dataset.lang; try { localStorage.setItem('nrw-story-lang', lang); } catch (e) {} applyLang(); }));
+const eur = v => { const a = Math.abs(v); if (lang === 'fr') { if (a >= 1e6) return (v / 1e6).toFixed(a >= 1e7 ? 0 : 2).replace(/\.?0+$/, '').replace('.', ',') + ' M€'; if (a >= 1e3) return Math.round(v / 1e3) + ' k€'; return Math.round(v) + ' €'; }
+  if (a >= 1e6) return '€' + (v / 1e6).toFixed(a >= 1e7 ? 0 : 2).replace(/\.?0+$/, '') + 'M'; if (a >= 1e3) return '€' + Math.round(v / 1e3) + 'k'; return '€' + Math.round(v); };
+
+/* the risk model (same rules as the dashboard) */
+const riskById = Object.fromEntries(D.RISKS.map(r => [r.id, r]));
+const STATUS_V = {not:0, prog:.5, done:1};
+let docs = JSON.parse(JSON.stringify(D.SEED)), live = false, liveAt = null;
+const clampPI = x => Math.max(1, Math.min(4, Math.round(x)));
+const inh = r => { const o = docs['reassess/' + r.id]; return o && Number.isFinite(o.p) && Number.isFinite(o.i) ? {p:clampPI(o.p), i:clampPI(o.i)} : {p:r.p, i:r.i}; };
+const tgt = r => { const a = inh(r); return {p:Math.min(r.tp, a.p), i:Math.min(r.ti, a.i)}; };
+const actStatus = aid => { const d = docs['actions/' + aid]; return d && d.status in STATUS_V ? d.status : 'not'; };
+const actionsOf = r => D.ACTIONS.filter(a => a.risks.includes(r.id)).map(a => a.id);
+const completion = r => { const ids = actionsOf(r); return ids.length ? ids.reduce((s, id) => s + STATUS_V[actStatus(id)], 0) / ids.length : 0; };
+const nowPI = r => { const a = inh(r), g = tgt(r), c = completion(r); return {p:Math.round(a.p - (a.p - g.p) * c), i:Math.round(a.i - (a.i - g.i) * c)}; };
+const score = pi => pi.p * pi.i;
+const level = s => s >= 12 ? 'crit' : s >= 8 ? 'high' : s >= 5 ? 'mod' : 'low';
+const LV_C = {crit:'var(--crit)', high:'var(--high)', mod:'var(--mod)', low:'var(--low)'};
+const LV_N = {crit:'Critical', high:'High', mod:'Moderate', low:'Low'};
+function assump(){ const a = docs['config/assumptions']; return a && Array.isArray(a.lik) && Array.isArray(a.imp) && a.lik.length === 4 && a.imp.length === 4 && a.lik.concat(a.imp).every(Number.isFinite) ? a : D.DEFAULT_ASSUMP; }
+const eal = pi => { const A = assump(); return A.lik[pi.p - 1] * A.imp[pi.i - 1]; };
+const ealNow = r => { const a = eal(inh(r)), g = eal(tgt(r)); return a - (a - g) * completion(r); };
+function lastReading(k){ const d = docs['kri/' + k.id]; const rs = d && Array.isArray(d.readings) ? d.readings.filter(x => x && Number.isFinite(Number(x.v)) && !isNaN(Date.parse(x.at))) : []; rs.sort((a, b) => Date.parse(a.at) - Date.parse(b.at)); return rs[rs.length - 1] || null; }
+const kriLv = (k, v) => v == null ? 'none' : k.dir === 'up' ? (v >= k.red ? 'critical' : v >= k.amber ? 'warning' : 'ok') : (v <= k.red ? 'critical' : v <= k.amber ? 'warning' : 'ok');
+const contained = rid => { const d = docs['response/' + rid]; return d && typeof d.at === 'string' ? d : null; };
+function openAlerts(){ return D.KRIS.filter(k => { const l = lastReading(k); if (!l || !['critical', 'warning'].includes(kriLv(k, Number(l.v)))) return false; const c = contained(k.risk); return !(c && Date.parse(l.at) <= Date.parse(c.at)); }); }
+const fmtV = (k, v) => (Number.isInteger(v) ? v : Number(v).toFixed(1)) + (k.unit === '%' ? '%' : k.unit ? t(k.unit) : '');
+
+/* live data from the team database (falls back to the dossier figures) */
+async function pull(){
+  try {
+    const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 7000);
+    const r = await fetch(API, {signal:ctl.signal, credentials:'omit', cache:'no-store'}); clearTimeout(to);
+    if (!r.ok) throw new Error(r.status);
+    const j = await r.json();
+    if (!j || !j.docs || typeof j.docs !== 'object' || Array.isArray(j.docs) || !Object.keys(j.docs).length) throw new Error('empty');
+    docs = j.docs; live = true; liveAt = new Date();
+  } catch (e) { live = false; }
+  renderAll(false);
+}
+
+/* ── poster wall ── */
+let order = [], active = 0, userTook = false, cycleT = 0;
+const poster = (rid, title) => posterSVG(rid, title ? {title} : {});
+function rankedRisks(){ return D.RISKS.slice().sort((a, b) => score(nowPI(b)) - score(nowPI(a)) || score(inh(b)) - score(inh(a)) || a.id.localeCompare(b.id, 'en', {numeric:true})); }
+function renderWall(force){
+  const next = rankedRisks().map(r => r.id), wall = $('#wall');
+  if (force || next.join() !== order.join() || !wall.children.length) {
+    const keep = order[active]; order = next; active = Math.max(0, keep ? order.indexOf(keep) : 0);
+    wall.replaceChildren(...order.map((id, k) => el('button', {class:'strip', type:'button', role:'listitem', 'data-id':id, onclick:() => openFeat(id),
+      onmouseenter:() => { userTook = true; setActive(k); }, onfocus:() => { userTook = true; setActive(k); }},
+      el('span', {class:'art', html:poster(id)}), el('span', {class:'lvl'}), el('span', {class:'lbl'}), el('span', {class:'info'}))));
+  }
+  $$('.strip', wall).forEach(b => {
+    const r = riskById[b.dataset.id], s = score(nowPI(r)), lv = level(s), c = contained(r.id);
+    b.style.setProperty('--c', LV_C[lv]);
+    b.setAttribute('aria-label', `${r.id} ${t(r.name)}, ${t('score')} ${s}, ${t(LV_N[lv])}`);
+    b.querySelector('.lbl').textContent = `${r.id}  ${t(r.name)}`;
+    b.querySelector('.info').replaceChildren(
+      el('span', {class:'k', text:`${r.id}, ${t(LV_N[lv]).toUpperCase()}`}), el('h2', {text:t(r.name)}),
+      el('p', {text:`${t(r.event)}. ${t(r.cons)}.`}),
+      el('span', {class:'row'}, el('span', {class:'pill'}, el('i'), `${t('Score now')} ${s}/16`), el('span', {class:'pill'}, `${t('Analyst')}: ${r.analyst}`),
+        c ? el('span', {class:'pill', style:'--c:var(--low)'}, el('i'), t('Contained')) : null));
+  });
+  setActive(active); applySearch();
+}
+function setActive(k){ active = k; $$('.strip').forEach((b, i) => b.classList.toggle('on', i === k)); }
+function cycle(){ clearInterval(cycleT); if (reduce()) return; cycleT = setInterval(() => { if (userTook || document.hidden || $('#feat').open || ($('#q').value || '').trim()) return; setActive((active + 1) % Math.min(order.length, 8)); }, 3800); }
+$('#wall').addEventListener('mouseleave', () => { userTook = false; });
+function applySearch(){
+  const q = ($('#q').value || '').trim().toLowerCase(); let first = -1;
+  $$('.strip').forEach((b, k) => { const r = riskById[b.dataset.id], hay = [r.id, r.name, t(r.name), r.cat, t(r.cat), r.analyst, r.event, t(r.event)].join(' ').toLowerCase();
+    const hit = !q || hay.includes(q); b.classList.toggle('dim', !hit); if (hit && first < 0) first = k; });
+  if (q && first >= 0) setActive(first);
+  $('#sortnote').textContent = q ? (first < 0 ? t('No risk matches that search.') : t('Matching risks are lit up.')) : t("Ranked by today's score, most dangerous first. Select a poster to open it.");
+}
+$('#q').addEventListener('input', applySearch);
+
+/* ── featured risk ── */
+let featId = null;
+function openFeat(id){
+  featId = id; const r = riskById[id], s = score(nowPI(r)), lv = level(s), dlg = $('#feat'), box = $('#feat-in');
+  box.className = 'feat'; box.style.setProperty('--c', LV_C[lv]);
+  const owner = D.RISK_OWNER[id] || 'Direction', person = D.ROLE_PERSON[owner] || r.analyst;
+  box.replaceChildren(
+    el('div', {class:'bg', html:poster(id)}), el('div', {class:'shade'}),
+    el('button', {class:'x', type:'button', 'aria-label':t('Close'), onclick:() => dlg.close()}, '×'),
+    el('div', {class:'body'},
+      el('div', null,
+        el('p', {class:'k', text:`${r.id}, ${t(r.cat).toUpperCase()}`}),
+        el('h2', {id:'f-h', text:t(r.name)}),
+        el('div', {class:'facts'}, ...[['Before actions', score(inh(r))], ['Now', s], ['After plan', score(tgt(r))]].map(([l, v]) => el('span', null, el('b', {text:String(v), style:`color:${LV_C[level(v)]}`}), t(l))),
+          el('span', null, el('b', {text:r.analyst}), t('Analyst')), el('span', null, el('b', {text:person}), t(owner))),
+        el('p', {class:'syn', text:`${t(r.cause)}. ${t(r.event)}: ${lc(t(r.cons))}.`}),
+        el('div', {class:'acts'},
+          el('button', {class:'btn', type:'button', onclick:() => watch(id)}, el('span', {html:'<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg>'}), t('Watch the response')),
+          el('button', {class:'btn ghost', type:'button', onclick:() => gallery(true)}, t('Gallery')),
+          el('a', {class:'btn ghost', href:'../#risk=' + id}, t('Open in the dashboard')))),
+      el('div', {class:'card', html:poster(id, t(r.name))})),
+    el('div', {class:'watch'}, playerEl('feat-player')),
+    el('div', {class:'gal', id:'gal'}));
+  if (!dlg.open) dlg.showModal();
+}
+$('#feat').addEventListener('close', () => { clearTimeout(playT); featId = null; });
+$('#feat').addEventListener('cancel', e => { const box = $('#feat-in'); if (box.classList.contains('gallery') || box.classList.contains('watching')) { e.preventDefault(); box.classList.remove('gallery', 'watching'); clearTimeout(playT); } });
+function gallery(on){
+  const box = $('#feat-in'), id = featId, r = riskById[id]; box.classList.toggle('gallery', on); if (!on) return;
+  const kris = D.KRIS.filter(k => k.risk === id), play = D.PLAYBOOKS[id] || [];
+  const tiles = [
+    ['Cause', el('p', {text:t(r.cause)})], ['What happens', el('p', {text:t(r.event)})], ['The damage', el('p', {text:t(r.cons)})],
+    ['Early warnings', el('ol', null, ...kris.map(k => { const l = lastReading(k), lv = l ? kriLv(k, Number(l.v)) : 'none'; return el('li', null, t(k.name), l ? el('b', {style:`color:${lv === 'critical' ? 'var(--crit)' : lv === 'warning' ? 'var(--high)' : 'var(--low)'}`, text:' ' + fmtV(k, Number(l.v))}) : el('span', {style:'color:var(--muted)', text:' ' + t('no reading yet')})); }))],
+    ['If it happens', el('ol', null, ...play.map(([st, role]) => el('li', null, t(st), el('span', {style:'color:var(--muted)', text:` (${D.ROLE_PERSON[role] || r.analyst})`}))))],
+    ['What lowers it', el('ol', null, ...D.ACTIONS.filter(a => a.risks.includes(id)).map(a => el('li', null, t(a.title), el('span', {style:'color:var(--muted)', text:` (${t({not:'Not started', prog:'In progress', done:'Done'}[actStatus(a.id)])})`}))))],
+  ];
+  const spots = [[5, 13], [66, 9], [70, 55], [6, 56], [36, 68], [38, 6]], pics = [[23, 25], [87, 21], [60, 73]];
+  const R = (k => () => (k = (k * 9301 + 49297) % 233280) / 233280)(id.length * 97 + 13);
+  const gal = $('#gal');
+  gal.replaceChildren(
+    el('button', {class:'btn ghost back', type:'button', onclick:() => gallery(false)}, t('Back')),
+    el('p', {class:'word', text:t('Gallery')}),
+    ...pics.map(([x, y], k) => el('div', {class:'tile pic', 'aria-hidden':'true', style:`left:${x}%;top:${y}%;--d:${16 + k * 3}s;--dx:${(R() * 30 - 15).toFixed(0)}px;--dy:${(R() * 30 - 15).toFixed(0)}px;--r0:${(R() * 8 - 4).toFixed(1)}deg;--r1:${(R() * 8 - 4).toFixed(1)}deg`, html:poster(id)})),
+    ...tiles.map(([h, body], k) => el('section', {class:'tile', style:`left:${spots[k][0]}%;top:${spots[k][1]}%;--d:${14 + k * 2}s;--dx:${(R() * 24 - 12).toFixed(0)}px;--dy:${(R() * 24 - 12).toFixed(0)}px;--r0:${(R() * 4 - 2).toFixed(1)}deg;--r1:${(R() * 4 - 2).toFixed(1)}deg`}, el('h3', {text:t(h)}), body)));
+  gal.querySelector('.back').focus();
+}
+
+/* ── response demo: a phone plays the real flow for a risk ── */
+function playerEl(id){
+  return el('figure', {class:'player', style:'margin:0', id},
+    el('div', {class:'scr'}, el('div', {class:'phone', 'aria-live':'polite'}),
+      el('button', {class:'play', type:'button', 'aria-label':t('Play the response'), onclick:e => runDemo(e.currentTarget.closest('.player'), id === 'feat-player' ? featId : 'R2')}, el('i', {html:PLAY_SVG}))),
+    el('figcaption', {text:t('From the first alert to the incident closed')}));
+}
+function storyFor(rid){
+  const r = riskById[rid], play = D.PLAYBOOKS[rid] || [], k = D.KRIS.find(x => x.risk === rid), pf = D.IMPACT_PROFILE[rid], worst = assump().imp[inh(r).i - 1];
+  const dmg = Math.round(worst * pf.onset / 100) * 100, perH = worst * (1 - pf.onset) / pf.hours, g = docs['config/governance'], ceo = g && D.SECTORS.some(s => s[0] === g.ceo) ? g.ceo : 'Krishna';
+  const asker = D.ROLE_PERSON[D.RISK_OWNER[rid]] || r.analyst, step = play[0] || ['', ''];
+  return [
+    {n:'red', b:`${r.id} ${t(r.name)}`, p:k ? `${t(k.name)}: ${t('past its threshold')}.` : t('An early warning went off.'), s:0},
+    {n:'', b:t('{a} asked the CEO to contain {r}').replace('{a}', asker).replace('{r}', r.id), p:`${t('Damage so far')} ≈ ${eur(dmg)}, ${t('each hour of waiting')} ≈ ${eur(perH)}.`, acts:['Approve', 'Reject'], hit:0, s:1},
+    {n:'ok', b:t('Approved by {c} (CEO)').replace('{c}', ceo), p:t('Containment started.'), s:1},
+    {n:'', b:t('{p}: your task for {r}').replace('{p}', D.ROLE_PERSON[step[1]] || r.analyst).replace('{r}', r.id), p:`1. ${t(step[0])}`, acts:['Done: step 1'], hit:0, s:2},
+    {n:'ok', b:t('Incident closed: {r}').replace('{r}', r.id), p:`${t('Loss avoided')} ≈ ${eur(worst - dmg)}.`, s:3},
+  ];
+}
+let playT = 0;
+function runDemo(player, rid){
+  if (!player || !rid) return;
+  const ph = player.querySelector('.phone'), btn = player.querySelector('.play'), steps = player.id === 'player-main' ? $$('#steps li') : [];
+  clearTimeout(playT); ph.replaceChildren(); btn.hidden = true; steps.forEach(li => li.classList.remove('now'));
+  const story = storyFor(rid);
+  const go = i => {
+    const st = story[i];
+    const n = el('div', {class:'note ' + st.n}, el('b', {text:st.b}), st.p, st.acts ? el('div', {class:'acts'}, ...st.acts.map((a, k) => el('span', {class:k === st.hit ? 'hit' : '', text:t(a)}))) : null);
+    ph.append(n); requestAnimationFrame(() => n.classList.add('on')); while (ph.children.length > 4) ph.firstElementChild.remove();
+    steps.forEach((li, k) => li.classList.toggle('now', k === st.s));
+    playT = i < story.length - 1 ? setTimeout(() => go(i + 1), reduce() ? 400 : 1400) : setTimeout(() => { btn.hidden = false; btn.setAttribute('aria-label', t('Play again')); }, 1600);
+  };
+  go(0);
+}
+function watch(id){
+  const box = $('#feat-in'), w = box.querySelector('.watch'); box.classList.add('watching'); runDemo($('#feat-player'), id);
+  w.onclick = e => { if (e.target === w) { box.classList.remove('watching'); clearTimeout(playT); } };
+}
+
+/* ── right now ── */
+function renderNow(){
+  $('#k-crit').textContent = D.RISKS.filter(r => score(nowPI(r)) >= 12).length;
+  $('#k-loss').textContent = eur(D.RISKS.reduce((s, r) => s + ealNow(r), 0));
+  $('#k-alerts').textContent = openAlerts().length;
+  $('#k-src').textContent = live ? t('Live from the team database, updated') + ' ' + liveAt.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-GB', {hour:'2-digit', minute:'2-digit'}) : t('Figures from the NOVATECH dossier');
+  const lv = $('#live'); lv.classList.toggle('on', live); lv.querySelector('span').textContent = live ? t('Live team data') : t('Dossier figures');
+  const logs = Object.entries(docs).filter(([p, d]) => p.startsWith('log/') && d && d.kind === 'score' && riskById[d.rid] && !isNaN(Date.parse(d.at))).map(([, d]) => d).sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  const d = logs[0];
+  $('#k-last').textContent = live && d ? `${d.by || t('Someone')}: ${d.rid} ${t(riskById[d.rid].name)} ${Math.round(d.from)} → ${Math.round(d.to)}` : t('No change logged yet');
+}
+
+/* ── cost of waiting ── */
+const COST_RISKS = ['R2', 'R3', 'R5', 'R11', 'R16', 'R1'];
+let costRisk = 'R2', costDrawn = '';
+function renderCost(){
+  $('#chips').replaceChildren(...COST_RISKS.map(id => el('button', {class:'chip', type:'button', 'aria-pressed':String(id === costRisk), onclick:() => { costRisk = id; renderCost(); }}, `${id} ${t(riskById[id].name)}`)));
+  const r = riskById[costRisk], pf = D.IMPACT_PROFILE[costRisk], h = Number($('#hrs').value), worst = assump().imp[inh(r).i - 1];
+  const share = Math.min(.95, pf.onset + (1 - pf.onset) * h / pf.hours), dmg = Math.round(worst * share / 100) * 100;
+  $('#hrs-v').textContent = h === 0 ? t('at once') : h < 1 ? '30 min' : String(h).replace('.', lang === 'fr' ? ',' : '.') + ' h';
+  $('#o-d').textContent = eur(dmg); $('#o-a').textContent = eur(worst - dmg); $('#o-w').textContent = eur(worst);
+  $('#o-per').textContent = t('Each hour of delay costs about') + ' ' + eur(worst * (1 - pf.onset) / pf.hours) + '. ' + t('Without action this risk reaches its full cost in about') + ' ' + (pf.hours >= 48 ? Math.round(pf.hours / 24) + ' ' + t('days') : pf.hours + ' h') + '.';
+  const f = $('#fill'); if (costDrawn !== costRisk + lang) { costDrawn = costRisk + lang; f.replaceChildren(el('span', {class:'art', html:poster(costRisk, t(r.name))}), el('span', {class:'lvl'}), el('span', {class:'pc'})); }
+  f.querySelector('.lvl').style.height = (share * 100).toFixed(1) + '%'; f.querySelector('.pc').textContent = Math.round(share * 100) + '%';
+}
+$('#hrs').addEventListener('input', renderCost);
+
+/* ── team ── */
+function renderCrew(){
+  const g = docs['config/governance'], ceo = g && D.SECTORS.some(s => s[0] === g.ceo) ? g.ceo : 'Krishna';
+  $('#crew').replaceChildren(...D.SECTORS.map(([name, area]) => el('article', {class:name === ceo ? 'ceo' : ''},
+    el('div', {class:'thumbs'}, ...D.RISKS.filter(r => r.analyst === name).map(r => el('button', {type:'button', 'aria-label':`${r.id} ${t(r.name)}`, onclick:() => openFeat(r.id), html:poster(r.id)}))),
+    el('div', {class:'who'}, el('h3', {text:name}), el('p', {text:t(area)}), name === ceo ? el('p', {class:'ceo-t', text:t('Also plays the CEO')}) : null))));
+}
+
+/* side menu follows the scroll */
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) $$('.side a').forEach(a => a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + e.target.id))); }), {rootMargin:'-45% 0px -50% 0px'});
+['home', 'now', 'contain', 'cost', 'team'].forEach(id => io.observe(document.getElementById(id)));
+
+let crewSig = '';
+function renderAll(force){
+  renderWall(force); renderNow(); renderCost();
+  const g = docs['config/governance'], sig = lang + (g && g.ceo);
+  if (force || sig !== crewSig) { crewSig = sig; renderCrew(); }
+  if (force) $('#player-main').replaceWith(playerEl('player-main'));
+}
+/* hand control: the fingertip chooses posters, tilts the featured card and moves the gallery */
+const HAND = {t,
+  onMove:(x, y, under) => {
+    const dlg = $('#feat');
+    if (dlg.open) {
+      const box = $('#feat-in'), dx = x / innerWidth - .5, dy = y / innerHeight - .5;
+      const card = box.querySelector('.card'); if (card) card.style.transform = `perspective(900px) rotateY(${(dx * 22).toFixed(1)}deg) rotateX(${(-dy * 16).toFixed(1)}deg)`;
+      if (box.classList.contains('gallery')) $$('.gal .tile', box).forEach((tl, i) => { const f = (i % 3 + 1) * 10; tl.style.translate = `${(-dx * f).toFixed(1)}px ${(-dy * f).toFixed(1)}px`; });
+      return;
+    }
+    const strip = under && under.closest && under.closest('.strip');
+    if (strip) { const k = $$('.strip').indexOf(strip); if (k >= 0 && k !== active) { userTook = true; setActive(k); } }
+  },
+  onBack:() => { const dlg = $('#feat'), box = $('#feat-in'); if (!dlg.open) return; if (box.classList.contains('gallery') || box.classList.contains('watching')) { box.classList.remove('gallery', 'watching'); clearTimeout(playT); } else dlg.close(); },
+  canScroll:() => !$('#feat').open,
+  onState:v => { $('#handbtn').setAttribute('aria-pressed', String(v)); if (!v) userTook = false; },
+};
+$('#handbtn').addEventListener('click', () => HandCtl.toggle(HAND));
+new MutationObserver(() => HandCtl.mount($('#feat').open ? $('#feat') : document.body)).observe($('#feat'), {attributes:true, attributeFilter:['open']});
+applyLang(); cycle(); pull();
+setInterval(() => { if (!document.hidden) pull(); }, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) pull(); });
+const hm = location.hash.match(/^#risk=(R(?:1[0-6]|[1-9]))$/); if (hm) openFeat(hm[1]);
+})();
+</script>
+</body>
+</html>

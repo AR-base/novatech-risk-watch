@@ -86,7 +86,11 @@ src = open(B + 'story.src.html', encoding='utf-8').read()
 src = src.replace('__HANDCTL__', open(B + 'handctl.js', encoding='utf-8').read())
 src = src.replace('__POSTERS__', open(B + 'posters.js', encoding='utf-8').read())
 out = src.replace('__DATA__', json.dumps(data, ensure_ascii=False)).replace('__FR__', json.dumps(fr, ensure_ascii=False))
-open(B + 'story.html', 'w', encoding='utf-8').write(out)
+import os
+os.makedirs(B + 'story', exist_ok=True)
+open(B + 'story/index.html', 'w', encoding='utf-8').write(out)
+# the old address keeps working: story.html forwards to story/ (and keeps #risk=R2)
+open(B + 'story.html', 'w', encoding='utf-8').write('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>NOVATECH Risk Watch</title><meta name="robots" content="noindex"><meta http-equiv="refresh" content="0; url=story/"><link rel="canonical" href="story/"><script>location.replace("story/" + location.hash)</script></head><body><a href="story/">NOVATECH Risk Watch</a></body></html>')
 # report data strings that have no French yet
 miss = set()
 for r in data['RISKS']:
