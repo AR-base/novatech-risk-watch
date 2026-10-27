@@ -5,6 +5,11 @@ data = json.load(open(B + 'data.json'))
 site_fr = json.load(open('/home/claude/site/i18n/fr_dict.json', encoding='utf-8'))
 phr = dict(json.load(open('/home/claude/site/i18n/fr_phrases.json', encoding='utf-8')))
 EN = {  # keyed strings: key -> English text
+ 'now-lead':"NOVATECH grew 35% in two years with 25 new hires, three agencies and more cloud. These are today's numbers from the team dashboard.",
+ 'contain-lead':"What happens on the team's phones when a cyberattack is spotted, from the first alert to the incident closed.",
+ 'cost-lead':'Drag the slider: the later an incident is contained, the more of its worst case is already lost.',
+ 'team-lead':'Seven analysts, one slice of the radar each. Select a poster to open the risk.',
+ 'step4b':'For a cyberattack the demo laptop isolates itself; when every step is done the loss avoided is secured.',
  'hero-p1':'Revenue up 35% in two years, 25 new hires, three agencies and a lot more cloud. Growth brought sixteen risks with it.',
  'hero-p2':'Seven analysts watch them on one live radar. Every dot is a risk; the closer to the centre, the more dangerous.',
  'lineup-note':'Each capsule is a risk, standing with the analyst who found it. Taller means a higher score (likelihood × impact, 1 to 16). Switch to “After plan” to watch the mitigation plan shrink them, and select one to open it.',
@@ -46,9 +51,28 @@ FR = {
  'LAPTOP-07 isolated':'LAPTOP-07 isolé', 'Network access cut. Shutting down.':'Accès réseau coupé. Arrêt en cours.', 'Incident closed: R2':'Incident clôturé : R2', 'Loss avoided ≈ €1.1M.':'Perte évitée ≈ 1,1 M€.',
  'IT & cyber':'IT & cyber', 'Legal & data':'Juridique & données', 'Suppliers':'Fournisseurs', 'People':'RH', 'Governance':'Gouvernance', 'Finance':'Finance', 'Tools & sites':'Outils & sites',
 }
+FR.update({
+ 'Search the risks':'Rechercher un risque', 'Search':'Rechercher', 'Home':'Accueil', 'Right now':'En ce moment', 'Dossier figures':'Chiffres du dossier', 'Live team data':'Données de l’équipe en direct',
+ 'The sixteen NOVATECH risks':'Les seize risques de NOVATECH', "Ranked by today's score, most dangerous first. Select a poster to open it.":'Classés par score du jour, le plus dangereux en premier. Sélectionnez une affiche pour l’ouvrir.',
+ 'No risk matches that search.':'Aucun risque ne correspond à cette recherche.', 'Matching risks are lit up.':'Les risques correspondants sont allumés.',
+ 'Score now':'Score actuel', 'Contained':'Contenu', 'Watch the response':'Voir la réponse', 'Gallery':'Galerie', 'Open in the dashboard':'Ouvrir dans le tableau de bord', 'Back':'Retour',
+ 'What happens':'Ce qui arrive', 'The damage':'Les dégâts', 'Early warnings':'Signaux d’alerte', 'no reading yet':'pas encore de mesure',
+ 'Play the response':'Lancer la réponse', 'From the first alert to the incident closed':'De la première alerte à l’incident clôturé',
+ 'past its threshold':'seuil dépassé', 'An early warning went off.':'Un signal d’alerte s’est déclenché.',
+ '{a} asked the CEO to contain {r}':'{a} demande au PDG de contenir {r}', 'Damage so far':'Dommages', 'each hour of waiting':'chaque heure d’attente',
+ 'Approved by {c} (CEO)':'Validé par {c} (PDG)', 'Containment started.':'Confinement lancé.', '{p}: your task for {r}':'{p} : votre tâche pour {r}', 'Done: step 1':'Fait : étape 1',
+ 'Incident closed: {r}':'Incident clôturé : {r}', 'Loss avoided':'Perte évitée', 'No change logged yet':'Aucun changement enregistré', 'Also plays the CEO':'Joue aussi le PDG',
+ 'The incident is closed':'L’incident est clôturé',
+ 'now-lead':'NOVATECH a grandi de 35 % en deux ans avec 25 recrues, trois agences et plus de cloud. Voici les chiffres du jour issus du tableau de bord de l’équipe.',
+ 'contain-lead':'Ce qui se passe sur les téléphones de l’équipe quand une cyberattaque est repérée, de la première alerte à l’incident clôturé.',
+ 'cost-lead':'Faites glisser le curseur : plus un incident est contenu tard, plus une part de son pire scénario est déjà perdue.',
+ 'team-lead':'Sept analystes, chacun sa part du radar. Sélectionnez une affiche pour ouvrir le risque.',
+ 'step4b':'Pour une cyberattaque, l’ordinateur de démonstration s’isole ; quand toutes les étapes sont faites, la perte évitée est acquise.',
+})
 fr = {}
 fr.update(phr); fr.update(site_fr); fr.update(FR); fr['__en'] = EN
 src = open(B + 'story.src.html', encoding='utf-8').read()
+src = src.replace('__POSTERS__', open(B + 'posters.js', encoding='utf-8').read())
 out = src.replace('__DATA__', json.dumps(data, ensure_ascii=False)).replace('__FR__', json.dumps(fr, ensure_ascii=False))
 open(B + 'story.html', 'w', encoding='utf-8').write(out)
 # report data strings that have no French yet
