@@ -61,13 +61,14 @@ export async function dbStatus(cfg) {
 }
 
 /* GET /db[?since=V]  ->  {v, docs} or {v, same:true} when nothing changed since V */
-export async function dbRead(cfg, url) {
-  const since = url.searchParams.get('since');
-  const [v] = await redis(cfg, [['GET', cfg.prefix + ':v']]);
-  const ver = Number(v) || 0;
-  if (since !== null && /^\d{1,12}$/.test(since) && Number(since) === ver) return {v: ver, same: true};
+/* ?hb=1 also returns the phone-reminder heartbeat (beat() turns the raw state into a small public summary) */
+export async function dbRead(cfg, url, beat) {
+  const since = url.searchParams.get('since'), hb = url.searchParams.get('hb') === '1' && typeof beat === 'function';
+  const [v, raw] = await redis(cfg, [['GET', cfg.prefix + ':v'], ...(hb ? [['GET', cfg.prefix + ':notify']] : [])]);
+  const ver = Number(v) || 0, extra = hb ? {notify: beat(raw)} : {};
+  if (since !== null && /^\d{1,12}$/.test(since) && Number(since) === ver) return {v: ver, same: true, ...extra};
   const [v2, all] = await redis(cfg, [['GET', cfg.prefix + ':v'], ['HGETALL', cfg.prefix + ':docs']]);
-  return {v: Number(v2) || 0, docs: pairs(all)};
+  return {v: Number(v2) || 0, docs: pairs(all), ...extra};
 }
 
 /* POST /db  {by, ops:[{op:'set',path,data} | {op:'del',path} | {op:'replace',docs}]}  ->  {v} */

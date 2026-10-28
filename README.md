@@ -16,6 +16,7 @@ Site: https://ar-base.github.io/novatech-risk-watch/ · co-pilot direct link: ht
 - **Alerts before the risk hits:** 22 early-warning indicators with amber and red thresholds, plus trend-based early warnings.
 - **Persistent notifications:** open alerts pop up when the page opens and repeat. Acknowledging snoozes an alert for 5 minutes; every reload brings all open alerts back.
 - **Phone alerts** through the free ntfy app (channel set in *Phone alerts & help*).
+- **Continuous reminders from the server:** while a risk alert is open, the server (Cloudflare cron, every minute) keeps reminding the team channel and every teammate's own channel until someone contains or acknowledges it, even when every laptop is closed. See [Continuous reminders](#continuous-reminders).
 - **Live clue feed, mitigation plan (9 actions) and benefits** (expected annual loss before and after the plan).
 - **Live radar:** marking an action done, reassessing a risk or logging an indicator moves the dot straight away, with a trail, a ripple and a badge ("−2 · Moderate" or "−18%"). The *Radar logbook* under the headline says who changed what.
 - **Team database (Redis):** all dashboards share one database, so a change on any laptop shows on every screen within about 3 seconds. Without it, each computer keeps its own data.
@@ -35,7 +36,7 @@ Site: https://ar-base.github.io/novatech-risk-watch/ · co-pilot direct link: ht
 | What | Needed for | Cost |
 |---|---|---|
 | A modern browser (Chrome, Edge, Safari, Firefox) | the dashboard | free |
-| The **ntfy** app on each phone, one personal channel per teammate | phone alerts and *Done* buttons | free |
+| The **ntfy** app on each phone, subscribed to the team channel **and** the teammate's own channel | phone alerts and *Done* buttons | free |
 | A **Cloudflare** account with the worker `novatech-risk-watch` (this repo deploys it automatically) | AI server and team database | free plan |
 | An **Upstash Redis** database (console.upstash.com) | shared team database | free plan |
 | A Claude API key (`sk-ant-api03-…`) from console.anthropic.com | optional Claude analysis in the co-pilot | pay per use |
@@ -49,6 +50,19 @@ Site: https://ar-base.github.io/novatech-risk-watch/ · co-pilot direct link: ht
 4. Open the worker address: the status page must say `Team database (Redis): CONNECTED`. Then open the dashboard: the header shows *Live · team database (Redis)*.
 
 The first dashboard that connects copies its data into the empty database; every other dashboard then loads it. The server (`ai-server/teamdb.js`) only accepts the dashboard's own website, checks every record (allowed collections, size, count), limits requests per visitor and keeps the last 300 changes in an audit list (`nrw:audit`). Redis keys: `nrw:docs` (hash of records), `nrw:v` (version, +1 per change).
+
+## Continuous reminders
+
+Every teammate subscribes to **two** channels in the ntfy app (server `ntfy.sh`):
+
+| Channel | Gets |
+|---|---|
+| `novatech-rw-646087d3502ba9ca` (team) | a reminder of all open alerts, every 5 min by default |
+| `novatech-rw-646087d3502ba9ca-<first name>` (e.g. `…-mereena`) | that person's own reminders: their risks, CEO approvals (CEO only), their response tasks with *Done* buttons; with *Everyone* (default) also a digest of the team's open alerts, every 15 min |
+
+How it works: `ai-server/notify.js` runs from the worker's cron trigger (`wrangler.jsonc`, `* * * * *`). It reads the team database, finds open alerts exactly like the dashboard (same indicators, thresholds, containment and acknowledgements, from `ai-server/casedata.js`, generated from the dashboard), and posts to ntfy. Settings are shared in the record `config/notify` and edited in *Phone alerts & help → Continuous reminders* (team interval, personal channels: everyone / only the people responsible / off, personal interval, quiet at night, and a *Test every channel* button). ntfy.sh accepts about 250 messages a day per sender, refilled slowly, so the server keeps a stricter budget and always serves the team channel first. Its state is kept in `nrw:notify`; dashboards read a small heartbeat from it and stop sending their own reminders while the server reminds, and take over again if the server is paused or silent. The status page shows a `Phone reminders:` line.
+
+If a teammate gets nothing: in the ntfy app check the server is `ntfy.sh` and the channel name is exact (lower case, from the table in *Phone alerts & help*), allow notifications, and on Android turn off battery optimisation for ntfy. Then press *Test every channel from the server*.
 
 ## Turning on Claude AI
 

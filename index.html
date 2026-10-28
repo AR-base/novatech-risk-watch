@@ -638,6 +638,12 @@ a.btn{display:inline-flex;align-items:center;text-decoration:none;align-self:fle
 .appr-badge{font:700 11.5px var(--f-body);letter-spacing:.05em;text-transform:uppercase;color:#000;background:var(--high);border-radius:99px;padding:3px 9px}
 @media (max-width:600px){.appr-meter,.gov-grid{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.appr-list li.pending .appr-ic{animation:none}}
+/* continuous reminders panel */
+.rem-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.rem-grid .rem-check{flex-direction:row;align-items:center;gap:8px;align-self:end;padding:9px 0;color:var(--ink)}
+.rem-notes{margin:0 20px 18px;padding-left:18px;display:grid;gap:6px;font-size:13px;color:var(--muted);line-height:1.5}
+.rem-notes code.chan{font-size:12px}
+@media (max-width:640px){.rem-grid{grid-template-columns:1fr}}
 
 /* ───────────── Cinema theme: the dashboard dressed like the story site ─────────────
    Night background with a crimson glow, Anton for titles and big numbers, Archivo for everything else. */
@@ -1685,7 +1691,7 @@ function viewMethod(){
       S.errors.topic ? el('p', {class:'err', role:'alert', text:S.errors.topic}) : null,
       el('p', {class:'footnote', style:'margin-top:12px'}, 'Your phone is alerted when a logged reading turns an indicator amber or red, when a clue is logged (marked urgent if it makes a risk critical), as soon as the dashboard is opened or reloaded, and then with a reminder of open alerts every ', every, ' until the alerts are acknowledged or notifications are stopped. The free ntfy.sh service allows only a limited number of alerts a day, so use 10 s for the demo and a slower setting the rest of the time. Everyone who subscribes to the channel gets the alerts, so share it only with the team.'),
       phoneState.at ? el('p', {class:'footnote', style:'margin-top:6px;color:' + (phoneState.ok ? 'var(--low)' : 'var(--crit)'), text:(phoneState.ok ? 'Last phone alert sent ' : phoneState.limited ? 'Paused by ntfy.sh rate limit, ' : 'Last phone alert failed ') + ago(new Date(phoneState.at).toISOString()) + '.'}) : null));
-  return [phonePanel, teamPhonePanel(), governancePanel(), teamDbPanel(), el('section', {class:'panel'}, el('div', {class:'panel-h'}, el('h2', {text:'How the dashboard works'})),
+  return [phonePanel, teamPhonePanel(), notifyPanel(), governancePanel(), teamDbPanel(), el('section', {class:'panel'}, el('div', {class:'panel-h'}, el('h2', {text:'How the dashboard works'})),
     el('div', {class:'panel-b prose'},
       el('h3', {text:'1. Scoring'}),
       el('p', {text:'Each risk is scored Probability (1 rare – 4 almost certain) × Impact (1 minor – 4 critical), from 1 to 16. Critical is 12–16, high 8–11, moderate 5–7 and low 1–4. “Before” is the team’s assessment from the report, “After plan” is the residual score once every linked action is done, and “Now” moves between the two as actions are marked in progress (half) or done.'}),
@@ -1873,8 +1879,10 @@ const PHONE_KEY = 'novatech-riskwatch-lastphone';
 function phoneReminder(){
   if (!S.prefs.toasts || !S.prefs.phone || !S.loaded.kri) return;
   const open = openAlerts(); if (!open.length) return;
+  if (serverReminding()) return;          /* the server is reminding every channel (notify.js) */
   if (Date.now() - lastPhone < S.prefs.phoneEverySec * 1000 || Date.now() < phoneBackoff) return;
   lastPhone = Date.now();
+  localPersonal(open);
   const crit = open.some(a => a.tier === 'critical');
   const lines = open.slice(0, 4).map(a => `• ${a.r.id} ${a.r.name} (score ${a.score}): ${a.k.name} ${fmtV(a.k, a.st.last.v)}`);
   phonePush(`${open.length} open risk alert${open.length > 1 ? 's' : ''}`, lines.join('\n') + (open.length > 4 ? `\n+${open.length - 4} more` : ''), crit ? 5 : 4, [crit ? 'rotating_light' : 'warning']);
@@ -2037,6 +2045,7 @@ async function start(){
   { const m = (location.hash || '').match(/^#risk=(R(?:1[0-6]|[1-9]))$/); if (m) setTimeout(() => openRisk(m[1]), 600); }   /* deep link from the story site */
   localDb.collection('approval').onSnapshot(collect('approval', 'approvals'));
   localDb.doc('config/governance').onSnapshot(d => { S.gov = d.exists ? d.data() : null; schedule(); });
+  localDb.doc('config/notify').onSnapshot(d => { S.notifyCfg = d.exists ? d.data() : null; schedule(); });
   render();
   teamConnect();
 }
@@ -2759,8 +2768,10 @@ async function teamPoll(force){
   if (!force && document.hidden) return;
   TDB.busy = true; const st0 = TDB.state + TDB.err; let changed = false;
   try {
-    const j = await tdbFetch('GET', TDB.v < 0 ? '' : '?since=' + TDB.v);
+    const hb = Date.now() - (TDB.beatAt || 0) > 25000;            /* the reminder heartbeat, every ~30 s */
+    const j = await tdbFetch('GET', (TDB.v < 0 ? '?' : '?since=' + TDB.v + '&') + (hb ? 'hb=1' : ''));
     if (!validRemote(j)) throw new Error('Unexpected answer from the server');
+    if ('notify' in j) { const was = JSON.stringify(TDB.beat); TDB.beat = j.notify && typeof j.notify === 'object' ? j.notify : null; TDB.beatAt = Date.now(); if (was !== JSON.stringify(TDB.beat) && S.tab === 'method') changed = true; }
     TDB.fails = 0; TDB.lastSync = Date.now(); TDB.state = 'on'; TDB.err = '';
     if (!j.same || TDB.v < 0) {
       if (!j.docs) throw new Error('Unexpected answer from the server');
@@ -3568,11 +3579,13 @@ function containActions(rids){
   list.push({action:'view', label:tr('Open dashboard'), url:SITE_URL});
   return list.slice(0, 3);
 }
-/* Alerts also go to the phone of each responsible person (at most every 10 minutes per person and risk). */
+/* Alerts also go to the phone of each responsible person (at most once per personal-reminder interval per person and risk). */
 const routedAt = {};
 function routeToResponsible(ids, title, message, priority){
+  /* the server already reminds every personal channel (notify.js); otherwise follow the same settings */
+  if (serverReminding() || notifyCfg().personal === 'off') return;
   for (const rid of ids.slice(0, 4)) for (const name of responsibleFor(rid)) {
-    const key = name + rid; if (Date.now() - (routedAt[key] || 0) < 600000) continue; routedAt[key] = Date.now();
+    const key = name + rid; if (Date.now() - (routedAt[key] || 0) < notifyCfg().personalMin * 60000) continue; routedAt[key] = Date.now();
     const role = ROLES_OF(name).find(r => r === ownerOf(rid)) || (riskById[rid].analyst === name ? 'risk analyst' : ownerOf(rid));
     phonePush(`${name}: ${rid} ${riskById[rid].name} needs you`, `${title}\n${String(message).split('\n')[0]}\nYou are responsible as ${role}.`, priority, ['bust_in_silhouette'], false, containActions([rid]), personTopic(name));
   }
@@ -3701,7 +3714,7 @@ function responseBlock(r){
 function teamPhonePanel(){
   return el('section', {class:'panel', id:'team-phones', 'aria-labelledby':'tp-h'},
     el('div', {class:'panel-h'}, el('div', null, el('h2', {id:'tp-h', text:'Every team member gets their own alerts'}),
-      el('p', {class:'hint', text:'Each person subscribes to their own channel in the ntfy app. Alerts go to the people responsible for the risk, and during an incident each person receives their own task with a “Done” button.'}))),
+      el('p', {class:'hint', 'data-notr':'', text:L('Each person subscribes to TWO channels in the ntfy app: the team channel (every reminder) and their own channel below (their alerts, CEO approvals and tasks, with Done buttons).', 'Chacun s’abonne à DEUX canaux dans l’app ntfy : le canal d’équipe (tous les rappels) et son propre canal ci-dessous (ses alertes, validations du PDG et tâches, avec des boutons Fait).')}))),
     el('div', {class:'tbl-wrap'}, el('table', {class:'tbl', style:'min-width:680px'},
       el('thead', null, el('tr', null, ...['Team member', 'Plays the role of', 'Personal channel', ''].map(h => el('th', {text:h})))),
       el('tbody', null, ...TEAM.map(name => el('tr', null,
@@ -3714,6 +3727,72 @@ function teamPhonePanel(){
       el('h3', {text:'Demo: the infected laptop shuts down'}),
       el('p', null, 'Open ', el('a', {href:SITE_URL + '#device=LAPTOP-07', target:'_blank', rel:'noopener'}, 'the demo laptop page'), ' on a second computer and click “Start”. When someone contains a cyberattack (R2), a supplier breach (R5) or an insider threat (R16), that computer turns red, counts down and shuts its screen off. “Reopen” brings it back.'),
       el('p', null, 'To really lock a Windows computer as well, download the ', el('a', {href:'https://github.com/AR-base/novatech-risk-watch/tree/main/demo', target:'_blank', rel:'noopener'}, 'device agent'), ' (device-agent.bat and device-agent.ps1, same folder) and double-click device-agent.bat. It locks the session when the computer is isolated; started with -Shutdown it shuts the computer down after 60 seconds (cancel with “shutdown /a”).')));
+}
+
+/* ───────────── Continuous phone reminders ─────────────
+   The server (Cloudflare cron, every minute) reminds the team channel and each person's channel while a risk alert
+   is open, even when every dashboard is closed. Settings live in the team database (config/notify), so they are the
+   same for everyone. While the server is reminding, dashboards stop sending their own reminders (no duplicates and
+   no wasted ntfy.sh budget); if the server is silent, the open dashboards take over as before. */
+S.notifyCfg = S.notifyCfg || null;
+const NOTIFY_DEFAULT = {on:true, everyMin:5, personal:'all', personalMin:15, day:false};
+function notifyCfg(){
+  const d = S.notifyCfg || {}, c = {...NOTIFY_DEFAULT};
+  if (typeof d.on === 'boolean') c.on = d.on;
+  if ([1, 2, 5, 10, 15, 30, 60].includes(d.everyMin)) c.everyMin = d.everyMin;
+  if (['all', 'responsible', 'off'].includes(d.personal)) c.personal = d.personal;
+  if ([5, 10, 15, 30, 60].includes(d.personalMin)) c.personalMin = d.personalMin;
+  if (typeof d.day === 'boolean') c.day = d.day;
+  return c;
+}
+/* the server's heartbeat comes with the team-database poll (every ~30 s) */
+TDB.beat = null; TDB.beatAt = 0;
+function serverBeat(){ const b = TDB.beat; return TDB.state === 'on' && b && b.at && Date.now() - TDB.beatAt < 120000 && Math.abs(Date.now() - b.at) < 240000 ? b : null; }
+function serverReminding(){ const b = serverBeat(); return !!(b && b.on && b.ok && !(b.backoff > Date.now())); }
+function saveNotify(next){
+  const c = {...notifyCfg(), ...next};
+  return guarded('config/notify', () => S.db.doc('config/notify').set({...c, min:S.prefs.notifyMin, lang:S.prefs.lang === 'fr' ? 'fr' : 'en', topic:S.prefs.topic, test:next.test || (S.notifyCfg && S.notifyCfg.test) || undefined, at:new Date().toISOString(), by:S.myId || null}));
+}
+/* Local fallback (server silent): the people's channels follow the same settings as the server */
+function localPersonal(open){
+  const c = notifyCfg(); if (c.personal !== 'all' || !open.length) return;
+  for (const name of TEAM) {
+    if (open.some(a => responsibleFor(a.r.id).includes(name))) continue;          /* they get the routed alert */
+    const key = name + '*'; if (Date.now() - (routedAt[key] || 0) < c.personalMin * 60000) continue; routedAt[key] = Date.now();
+    phonePush(L(`${name}: ${open.length} risk alert${open.length > 1 ? 's' : ''} open in the team`, `${name} : ${open.length} alerte${open.length > 1 ? 's' : ''} ouverte${open.length > 1 ? 's' : ''} dans l’équipe`),
+      open.slice(0, 4).map(a => `• ${a.r.id} ${a.r.name} (score ${a.score})`).join('\n'), 3, ['busts_in_silhouette'], false, [{action:'view', label:tr('Open dashboard'), url:SITE_URL}], personTopic(name));
+  }
+}
+function notifyPanel(){
+  const c = notifyCfg(), b = serverBeat(), now = Date.now();
+  const st = !TDB.state || TDB.state !== 'on' ? ['idle', L('Needs the team database (below). Until then, reminders come from open dashboards only.', 'Nécessite la base d’équipe (plus bas). En attendant, seuls les tableaux ouverts envoient des rappels.')]
+    : !b ? ['bad', L('The server has not checked in yet. After the next deploy it starts within a minute; until then open dashboards send the reminders.', 'Le serveur ne s’est pas encore manifesté. Après le prochain déploiement il démarre en une minute ; en attendant les tableaux ouverts envoient les rappels.')]
+    : !b.on ? ['idle', L('Off. Only open dashboards remind the phones.', 'Désactivé. Seuls les tableaux ouverts envoient des rappels.')]
+    : b.backoff > now ? ['bad', L(`Paused by the ntfy.sh limit until ${new Date(b.backoff).toLocaleTimeString(S.prefs.lang === 'fr' ? 'fr-FR' : 'en-GB', {hour:'2-digit', minute:'2-digit'})}. Open dashboards cover meanwhile.`, `En pause (limite ntfy.sh) jusqu’à ${new Date(b.backoff).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'})}. Les tableaux ouverts prennent le relais.`)]
+    : !b.ok ? ['bad', L(`Last send failed (${b.err}). Open dashboards cover meanwhile.`, `Dernier envoi en échec (${b.err}). Les tableaux ouverts prennent le relais.`)]
+    : b.quiet ? ['idle', L('Night: quiet until 08:00 Paris time.', 'Nuit : silence jusqu’à 8 h (heure de Paris).')]
+    : b.active + b.pending + b.tasks ? ['ok', L(`Reminding now: ${b.active} open alert(s), ${b.pending} waiting for the CEO, ${b.tasks} open task(s). ${b.sentToday} sent today${b.lastSent ? ', last ' + ago(new Date(b.lastSent).toISOString()) : ''}.`, `Rappels en cours : ${b.active} alerte(s) ouverte(s), ${b.pending} en attente du PDG, ${b.tasks} tâche(s) ouverte(s). ${b.sentToday} envoyé(s) aujourd’hui.`)]
+    : ['ok', L(`Ready. Checks every minute; nothing open right now. ${b.sentToday} sent today.`, `Prêt. Vérifie chaque minute ; rien d’ouvert pour l’instant. ${b.sentToday} envoyé(s) aujourd’hui.`)];
+  const sel = (id, label, val, opts, key) => el('label', {for:id}, el('span', {text:label}),
+    el('select', {id, onchange:e => saveNotify({[key]:/^\d+$/.test(e.target.value) ? Number(e.target.value) : e.target.value})}, ...opts.map(([v, t]) => el('option', {value:String(v), selected:val === v}, t))));
+  const minTxt = n => L(n < 60 ? `every ${n} min` : 'every hour', n < 60 ? `toutes les ${n} min` : 'toutes les heures');
+  return el('section', {class:'panel', id:'reminders', 'aria-labelledby':'rem-h', 'data-notr':''},
+    el('div', {class:'panel-h'}, el('div', null, el('h2', {id:'rem-h', text:L('Continuous reminders', 'Rappels continus')}),
+      el('p', {class:'hint', text:L('The server keeps reminding the phones while a risk alert is open, until someone contains or acknowledges it, even when every laptop is closed.', 'Le serveur relance les téléphones tant qu’une alerte est ouverte, jusqu’au confinement ou à l’acquittement, même si tous les ordinateurs sont fermés.')})),
+      el('label', {for:'rem-on', class:'rsub', style:'display:inline-flex;gap:6px;align-items:center'}, el('input', {type:'checkbox', id:'rem-on', checked:c.on, onchange:e => saveNotify({on:e.target.checked})}), L('Remind', 'Relancer'))),
+    el('div', {class:'tdb-state ' + st[0], role:'status'}, el('i'), el('span', {text:st[1]})),
+    el('div', {class:'gov-grid rem-grid'},
+      sel('rem-every', L('Team channel', 'Canal d’équipe'), c.everyMin, [1, 2, 5, 10, 15, 30, 60].map(n => [n, minTxt(n)]), 'everyMin'),
+      sel('rem-who', L('Personal channels', 'Canaux personnels'), c.personal, [['all', L('Everyone, each on their own channel', 'Tout le monde, chacun sur son canal')], ['responsible', L('Only the people responsible', 'Seulement les responsables')], ['off', L('Off (team channel only)', 'Désactivés (canal d’équipe seul)')]], 'personal'),
+      sel('rem-pevery', L('Personal reminder', 'Rappel personnel'), c.personalMin, [5, 10, 15, 30, 60].map(n => [n, minTxt(n)]), 'personalMin'),
+      el('label', {for:'rem-day', class:'rem-check'}, el('input', {type:'checkbox', id:'rem-day', checked:c.day, onchange:e => saveNotify({day:e.target.checked})}), el('span', {text:L('Quiet at night (21:00–08:00 Paris)', 'Silence la nuit (21 h–8 h, Paris)')}))),
+    el('div', {class:'tdb-btns'},
+      el('button', {class:'btn primary', type:'button', disabled:TDB.state !== 'on', onclick:async () => { if (await saveNotify({test:new Date().toISOString()})) toast('info', L('Test sent to the server', 'Test envoyé au serveur'), L('Within a minute, the team channel and every personal channel get a test message. Anyone who gets nothing is not subscribed to the right channel.', 'Dans la minute, le canal d’équipe et chaque canal personnel reçoivent un message de test. Qui ne reçoit rien n’est pas abonné au bon canal.')); }},
+        L('Test every channel from the server', 'Tester tous les canaux depuis le serveur'))),
+    el('ul', {class:'rem-notes'},
+      el('li', null, L('Everyone subscribes to the team channel ', 'Chacun s’abonne au canal d’équipe '), el('code', {class:'chan', text:S.prefs.topic}), L(' and to their own channel (table above). The team channel always gets the reminders; personal channels get each person’s alerts, approvals and tasks.', ' et à son propre canal (tableau ci-dessus). Le canal d’équipe reçoit toujours les rappels ; les canaux personnels reçoivent les alertes, validations et tâches de chacun.')),
+      el('li', null, L('ntfy.sh accepts about 250 messages a day from one sender. The server keeps a budget and always serves the team channel first, so reminders never stop; if the budget runs low, personal reminders wait.', 'ntfy.sh accepte environ 250 messages par jour d’un même expéditeur. Le serveur garde un budget et sert toujours le canal d’équipe en premier : les rappels ne s’arrêtent jamais ; si le budget baisse, les rappels personnels attendent.')),
+      el('li', null, L('Buttons on the phone (Contain, Approve, Done) act through the dashboards: keep at least one dashboard open during the exercise.', 'Les boutons du téléphone (Contenir, Valider, Fait) passent par les tableaux : gardez au moins un tableau ouvert pendant l’exercice.'))));
 }
 
 /* ───────────── CEO approval before containment ─────────────

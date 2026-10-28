@@ -2,11 +2,13 @@
 // Keeps the Claude API key secret so visitors of the dashboard can use the AI analysis without a key of their own.
 // Only the dashboard's own address may call it, requests are size-limited, the model and output length are fixed,
 // and each visitor is limited to a few calls per minute.
-// It also serves the shared team database (Redis, see teamdb.js) at /db.
+// It also serves the shared team database (Redis, see teamdb.js) at /db, and every minute (cron) sends the
+// continuous phone reminders while a risk alert is open (see notify.js).
 
 import BUILD_KEY from './build-key.js';
 import BUILD_REDIS from './build-redis.js';
 import {dbConfig, dbStatus, dbRead, dbWrite, validateWrite, DB_LIMITS} from './teamdb.js';
+import {runNotify, notifyBeat} from './notify.js';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 2000;
@@ -55,12 +57,17 @@ async function statusPage(KEY, env, h, db) {
     text = `Claude key: found (from ${src}); ${kind}. ${verdict}`;
     lastCheck = {at: Date.now(), text};
   }
-  const dbLine = await dbStatus(db);
+  const dbLine = await dbStatus(db) + '\n' + await reminderStatus(db);
   return new Response('NOVATECH Risk Watch AI server is running.\n' + text + '\n' + dbLine + '\nAllowed website: ' + ((env.ALLOWED_ORIGINS || 'https://ar-base.github.io')) + '\nAddress to paste in Start-up co-pilot > Analysis engine > Claude: AI server: this page\'s address.',
     {status: 200, headers: {...h, 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store'}});
 }
 
 export default {
+  /* Cloudflare cron (wrangler.jsonc "triggers"): continuous phone reminders */
+  async scheduled(event, env, ctx) {
+    const db = dbConfig(env, BUILD_REDIS || {});
+    ctx.waitUntil(runNotify(db).catch(e => console.log('reminders:', String(e && e.message || e).slice(0, 160))));
+  },
   async fetch(request, env) {
     const KEY = env.ANTHROPIC_API_KEY || BUILD_KEY || '';
     const allowed = (env.ALLOWED_ORIGINS || 'https://ar-base.github.io').split(',').map(s => s.trim()).filter(Boolean);
@@ -108,7 +115,7 @@ async function teamDb(request, url, db, origin, allowed, h) {
   try {
     if (request.method === 'GET') {
       if (limited(dbHits, 'r' + ip, DB_READS_PER_MINUTE)) return reply(429, {error: 'Too many requests'}, hh);
-      return reply(200, await dbRead(db, url), hh);
+      return reply(200, await dbRead(db, url, notifyBeat), hh);
     }
     if (request.method !== 'POST') return reply(405, {error: 'Use GET or POST'}, hh);
     if (limited(dbHits, 'w' + ip, DB_WRITES_PER_MINUTE)) return reply(429, {error: 'Too many changes, wait a minute'}, hh);
@@ -121,4 +128,17 @@ async function teamDb(request, url, db, origin, allowed, h) {
   } catch (e) {
     return reply(e.status || 502, {error: String(e.message || e).slice(0, 200)}, hh);
   }
+}
+
+/* One line for the status page: is the server reminding phones? */
+async function reminderStatus(db) {
+  if (!db.ok) return 'Phone reminders: need the team database.';
+  try {
+    const r = await fetch(db.url + '/get/' + db.prefix + ':notify', {headers: {Authorization: 'Bearer ' + db.token}});
+    const b = notifyBeat((await r.json()).result);
+    if (!b || !b.at) return 'Phone reminders: WAITING for the first cron run (Cloudflare > this worker > Settings > Trigger events should show "* * * * *").';
+    const ago = Math.round((Date.now() - b.at) / 1000);
+    const state = !b.on ? 'OFF (switched off in the dashboard)' : b.quiet ? 'QUIET HOURS' : b.backoff > Date.now() ? 'PAUSED by ntfy.sh rate limit' : b.active + b.pending + b.tasks ? `ACTIVE: ${b.active} open alert(s), ${b.pending} waiting for the CEO, ${b.tasks} open task(s)` : 'READY (no open alert)';
+    return `Phone reminders: ${state}. Last check ${ago} s ago, ${b.sentToday} sent today${b.ok ? '' : ', last error: ' + b.err}.`;
+  } catch (e) { return 'Phone reminders: status unavailable.'; }
 }

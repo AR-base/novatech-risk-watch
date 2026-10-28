@@ -8,6 +8,8 @@
   "compatibility_date": "2025-09-01",
   "workers_dev": true,
   "preview_urls": false,
+  // Every minute: continuous phone reminders while a risk alert is open (ai-server/notify.js)
+  "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "ALLOWED_ORIGINS": "https://ar-base.github.io"
   }
